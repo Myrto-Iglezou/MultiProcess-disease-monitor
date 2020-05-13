@@ -7,12 +7,16 @@ OUT    = diseaseAggregator
 CC     = gcc
 FLAGS  = -g -c
 
-all: diseaseAggregator
+all: diseaseAggregator worker
 
 diseaseAggregator: diseaseAggregator.o 
 	$(CC) -g diseaseAggregator.o  -o diseaseAggregator 
 
 # create/compile the individual files >>seperetaly<<
+
+worker: worker.o 
+	$(CC) -g worker.o  -o worker 
+
 
 diseaseAggregator.o: diseaseAggregator.c 
 	$(CC) $(FLAGS) diseaseAggregator.c 
