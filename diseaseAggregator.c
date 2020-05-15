@@ -68,7 +68,7 @@ int main(int argc, char const *argv[]){
         }      
 	}
 
-	/*----------------------- Distribute the subcategories -----------------------------*/
+	/*----------------------- Distribute the subdirectories -----------------------------*/
 
 	if((dir = opendir(input_dir)) == NULL)	//open directory
 		err("Can not open directory");
