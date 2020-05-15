@@ -41,67 +41,67 @@ int main(int argc, char const *argv[]){
 	int fd[numWorkers];
 	char temp[5];
 
-	// if(read(fd,buffer,bufferSize+1)<0)
-	// 	err("Problem in reading")
-
+	for(int i=0; i<numWorkers ;i++){
+		fifo[i] = malloc(5*sizeof(char));
+	}
 
 	for(int i=0; i<numWorkers ;i++){
 		sprintf(temp,"%d",i);
            	
-		fifo[i] = temp;
+		strcpy(fifo[i],temp);
 		
 		if(mkfifo(fifo[i],0666) == -1)
 			err("No fifo was created");
 
+		if((fd[i] = open(fifo[i], O_RDWR )) < 0)
+			err("Could not open fifo");
+
 		pid = fork();
         
-        if(pid == -1){
-           	perror ("---fork failed---" );
-           	exit (1) ;
-        }
-        if(pid != 0){
-           	printf ("I am the parent with process id  %d\n",getpid());  	
-           	// close(fd[i]);
-        }else{
-        	printf ("I am the child with process id  %d\n",getpid());
-           	
+        if(pid == -1)
+           	err("---fork failed---" );
+
+        if(pid == 0){
         	sprintf(fifoBuffer,"%d",bufferSize);
-           	// sprintf(filed,"%d",fd[i]);
-           	execlp("./worker","worker","-fn",fifo[i],"-b",fifoBuffer,NULL);
-        }
-       
+           	sprintf(filed,"%d",fd[i]);
+          	execlp("./worker","worker","-fd",filed,"-b",fifoBuffer,NULL);
+        }      
 	}
 
 	/*----------------------- Distribute the subcategories -----------------------------*/
 
-	if((dir = opendir(input_dir)) == NULL){		//open directory
+	if((dir = opendir(input_dir)) == NULL)	//open directory
 		err("Can not open directory");
-		return 1;
-	}
+	
 	int w=0;
 	char path[bufferSize];
+	memset(path,0,bufferSize);
+
+	int t=0;
 	
 	while((dir_info=readdir(dir)) != NULL){
 		strcpy(path,input_dir); 
 		if(!strcmp(dir_info->d_name,".") || !strcmp(dir_info->d_name,".."))	continue;
 
-		if(w==numWorkers-1)
+		if(w == numWorkers)
 			w=0;
 		strcat(path,"/");
 		strcat(path,dir_info->d_name);
-
-		if((fd[w] = open(fifo[w], O_WRONLY)) < 0)
-			err("Could not open fifo");
 		
-		write(fd[w],path,bufferSize+1);
-		close(fd[w]);
-
+		if(write(fd[w],path,bufferSize)<0)
+			err("Problem in writing")
 		w++;     
 	}
 
-	for (int i = 0; i < numWorkers; ++i){
-		wait(0);
-		// close(fd[i]);
+	for(int i=0; i<numWorkers ;i++){
+		if(write(fd[i],"stop",bufferSize)<0)
+			err("Problem in writing");
+	}
+
+	while(wait(NULL)>0);
+
+	for(int i=0; i<numWorkers ;i++){
+		close(fd[i]);
 		unlink(fifo[i]);
 	}
 
@@ -154,5 +154,8 @@ int main(int argc, char const *argv[]){
 	// }
 
 	closedir(dir);
+	for(int i=0; i<numWorkers ;i++){
+		free(fifo[i]);
+	}
 	return 0;
 }
