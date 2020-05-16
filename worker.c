@@ -29,8 +29,8 @@ int main(int argc, char const *argv[]){
 	guard = createGuard();
 	Treenode * root = guard;
 	Treenode * tempNode;
-	char date1[11] = "-";
-	char date2[11] = "-";
+	char* date1 = malloc((strlen(DATE)+1)*sizeof(char));
+	char* date2 = malloc((strlen(DATE)+1)*sizeof(char));
 	char* token;
 	char tempstr[40];
 
@@ -99,7 +99,13 @@ int main(int argc, char const *argv[]){
 					tempNode = FindData(root,pat,ComparePatientsID);
 					if(tempNode==guard && !strcmp(state,"ENTER"))
 						insertion(&root,pat,ComparePatientsID);
-					else	
+					else if(tempNode!=guard && !strcmp(state,"EXIT")){
+						deletePatient(pat);
+						pat = tempNode->data;
+						strcpy(date1,pat->entryDate);
+						if(CompareDates(&date1,&date2)<=0)
+							strcpy(pat->exitDate,date2);
+					}else	
 						deletePatient(pat);
 				}
 				fclose(fp);
@@ -112,8 +118,9 @@ int main(int argc, char const *argv[]){
 		}
 
 	}while(strcmp(buffer,"stop"));
-
+	// printTree(root,PrintPatient);
 	free(guard);
 	deleteTree(root,deletePatient);
+	free(date1);free(date2);
 	return 0;
 }

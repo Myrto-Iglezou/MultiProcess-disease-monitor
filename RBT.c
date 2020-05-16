@@ -236,12 +236,12 @@ void deleteTree(Treenode * root,void (*deletion)(const void*)){
 	free(root);	
 }
 
-void printTree(FILE * f,Treenode * root){	//print tree 
+void printTree(Treenode * root,void (*printData)(const void*)){	//print tree 
 	if(root==guard)
 		return;
-	printTree(f,root->left);
-	//printf("%p\n",root->data)
-	printTree(f,root->right);	
+	printTree(root->left,printData);
+	printData(root->data);
+	printTree(root->right,printData);	
 }
 
 Treenode* createGuard(){

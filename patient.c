@@ -20,7 +20,8 @@ Patient* createPatient(char* recordID,char* firstName,char* lastName,char* disea
 	return pat;
 }
 
-void deletePatient(Patient* pat){
+void deletePatient(const void* patient){
+	Patient* pat = (Patient*) patient;
 	free(pat->recordID);
 	free(pat->firstName);
 	free(pat->lastName);
@@ -29,4 +30,8 @@ void deletePatient(Patient* pat){
 	free(pat->entryDate);
 	free(pat->exitDate);
 	free(pat);
+}
+
+void PrintPatient(Patient * pat){
+	printf("%s %s %s %s %d %s %s\n",pat->recordID,pat->firstName,pat->lastName,pat->disease,pat->age,pat->entryDate,pat->exitDate);
 }

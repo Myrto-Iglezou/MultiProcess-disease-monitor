@@ -30,7 +30,7 @@ void FixedDelete(Treenode **root,Treenode* x);
 
 void transplant(Treenode **root,Treenode * x,Treenode* y);
 
-void printTree(FILE* f,Treenode * root);
+void printTree(Treenode * root,void (*printData)(const void*));
 
 Treenode* createGuard();
 
