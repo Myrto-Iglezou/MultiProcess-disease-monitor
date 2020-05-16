@@ -5,14 +5,16 @@
 
 typedef struct Patient{	
 	char* recordID;
-	char* state;
 	char* firstName;
 	char* lastName;
 	char* disease;
+	char* country;
+	char* entryDate;
+	char* exitDate;
 	int age;
 }Patient;
 
-Patient* createPatient(char* recordID,char* state,char* firstName,char* lastName,char* disease,int age);
+Patient* createPatient(char* recordID,char* firstName,char* lastName,char* disease,char* country,char* entryDate,char* exitDate,int age);
 void deletePatient(Patient* pat);
 
 

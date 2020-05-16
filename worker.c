@@ -8,73 +8,11 @@
 #include <signal.h>
 #include <dirent.h>
 #include <fcntl.h>
-#include "patient.h"
+#include "comparators.h" 
+#include "RBT.h"
 #define TRUE 1
 #define FALSE 0
-
 #define err(mess){fprintf(stderr,"ERROR: %s\n",mess);exit(1);}
-
-
-
-
-int CompareDates(const void* FDate,const void* SDate){
-	const char* FirstDate  = *(char**) FDate;
-	const char* SecondDate = *(char**) SDate;
-	
-	char* temp = malloc((strlen(DATE)+1)*sizeof(char)); ;
-	char day1[3],day2[3],month1[3],month2[3],year1[5],year2[5];
-	const char s[2] = "-";
-   	char *token;
-
-    strcpy(temp,FirstDate);
-    token = strtok(temp, s);
-
-	for(int i=0;i<3;i++){		// split the first date
-	    	
-    	if(i==0)
-    		strcpy(day1,token);
-    	if(i==1)
-    		strcpy(month1,token);
-    	if(i==2)
-    		strcpy(year1,token);
-   	
-      	token = strtok(NULL, s);
-    }
-
-   strcpy(temp,SecondDate);
-   token = strtok(temp, s);
-   
-   for(int i=0;i<3;i++){		// split the second date
-    	
-    	if(i==0)
-    		strcpy(day2,token);
-    	if(i==1)
-    		strcpy(month2,token);
-    	if(i==2)
-    		strcpy(year2,token);
-   	
-      	token = strtok(NULL, s);
-   }
-
-   free(temp);
-   
-   	if(atoi(year2)<atoi(year1))
-		return 1;
-	else if(atoi(year2)>atoi(year1))
-		return -1;
-	else if(atoi(year2)==atoi(year1) && atoi(month2)<atoi(month1))
-		return 1;
-	else if(atoi(year2)==atoi(year1) && atoi(month2)>atoi(month1))
-		return -1;
-	else if(atoi(year2)==atoi(year1) && atoi(month2)==atoi(month1) && atoi(day2)<atoi(day1))
-		return 1;
-	else if(atoi(year2)==atoi(year1) && atoi(month2)==atoi(month1) && atoi(day2)>atoi(day1))
-		return -1;
-	else if(atoi(year2)==atoi(year1) && atoi(month2)==atoi(month1) && atoi(day2)==atoi(day1))
-		return 0;
-}
-
-
 
 int main(int argc, char const *argv[]){
 
@@ -86,8 +24,15 @@ int main(int argc, char const *argv[]){
 	struct dirent * dir_info;
 	int n=0,count=0;
 	char path[100];
-	char recordID[10],state[10],patientFirstName[30],patientLastName[30],disease[20],age[5];
+	char country[40],recordID[10],state[10],patientFirstName[30],patientLastName[30],disease[20],age[5];
 	Patient* pat;
+	guard = createGuard();
+	Treenode * root = guard;
+	Treenode * tempNode;
+	char date1[11] = "-";
+	char date2[11] = "-";
+	char* token;
+	char tempstr[40];
 
 	for(int i=0; i<argc;i++){
 		
@@ -127,15 +72,35 @@ int main(int argc, char const *argv[]){
 			for(int i=0 ; i<n-1 ; i++){
 				strcpy(path,buffer); 
 				strcat(path,"/");
+
+				strcpy(tempstr,path);
+				token = strtok(tempstr,"/");
+				while(token !=NULL){
+					strcpy(country,token);
+					token = strtok(NULL,"/");
+				}
+				
 				strcat(path,namelist[i]);
-				printf("%s\n",path );
+				
 				if((fp = fopen(path,"r"))== NULL)	//open file
 					err("Can not open file");
 
 				while(!feof(fp)){
 					fscanf(fp,"%s %s %s %s %s %s \n",recordID,state,patientFirstName,patientLastName,disease,age);
-					pat =  createPatient(recordID,state,patientFirstName,patientLastName,disease,atoi(age));
-					deletePatient(pat);
+					if(!strcmp(state,"ENTER")){
+						strcpy(date1,namelist[i]);
+						strcpy(date2,"-");
+					}else if(!strcmp(state,"EXIT")){
+						strcpy(date2,namelist[i]);
+						strcpy(date1,"-");
+					}
+					
+					pat =  createPatient(recordID,patientFirstName,patientLastName,disease,country,date1,date2,atoi(age));
+					tempNode = FindData(root,pat,ComparePatientsID);
+					if(tempNode==guard && !strcmp(state,"ENTER"))
+						insertion(&root,pat,ComparePatientsID);
+					else	
+						deletePatient(pat);
 				}
 				fclose(fp);
 			}
@@ -148,6 +113,7 @@ int main(int argc, char const *argv[]){
 
 	}while(strcmp(buffer,"stop"));
 
-	
+	free(guard);
+	deleteTree(root,deletePatient);
 	return 0;
 }

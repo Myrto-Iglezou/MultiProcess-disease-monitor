@@ -27,6 +27,7 @@ num=1
 while read entry; do
 
 	mkdir ./$input_dir/$entry
+	# chmod 755 ./$input_dir/$entry
 
 	if [ -e $"temp.txt" ] ; then		# every country has its own temp file
 		rm temp.txt
@@ -92,16 +93,16 @@ while read entry; do
 			((age+=$num))
 			record+=" $age"
 			echo "$record" >> ./$input_dir/$entry/$date
+			chmod 755 ./$input_dir/$entry/$date
 			echo "$record" >> temp.txt
 
 		done
-
 	done
 
 done < $countriesFile
 rm temp.txt
 numWorkers=10
 bufferSize=512
-make clean
-make
-./diseaseAggregator -w $numWorkers -b $bufferSize -i $input_dir
+# make clean
+# make
+# ./diseaseAggregator -w $numWorkers -b $bufferSize -i $input_dir
