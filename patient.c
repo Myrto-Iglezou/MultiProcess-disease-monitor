@@ -32,6 +32,7 @@ void deletePatient(const void* patient){
 	free(pat);
 }
 
-void PrintPatient(Patient * pat){
+void PrintPatient(const void* patient){
+	Patient* pat = (Patient*) patient;
 	printf("%s %s %s %s %d %s %s\n",pat->recordID,pat->firstName,pat->lastName,pat->disease,pat->age,pat->entryDate,pat->exitDate);
 }

@@ -16,8 +16,9 @@
 
 int main(int argc, char const *argv[]){
 
-	int fd,bufferSize;
-	char fifo[32];
+	int rfd,wfd,bufferSize;
+	char readFifo[32];
+	char writeFifo[32];
 	int num;
 	DIR * dir;
 	FILE * fp;
@@ -36,8 +37,10 @@ int main(int argc, char const *argv[]){
 
 	for(int i=0; i<argc;i++){
 		
-		if(!strcmp(argv[i],"-fd"))
-			fd = atoi(argv[i+1]);
+		if(!strcmp(argv[i],"-rfd"))
+			rfd = atoi(argv[i+1]);
+		if(!strcmp(argv[i],"-wfd"))
+			wfd = atoi(argv[i+1]);
 		if(!strcmp(argv[i],"-b"))
 			bufferSize = atoi(argv[i+1]);
 	}
@@ -45,7 +48,7 @@ int main(int argc, char const *argv[]){
 	char buffer[bufferSize];
 
 	do{
-		if((read(fd,buffer,bufferSize))<0){
+		if((read(rfd,buffer,bufferSize))<0){
 			err("Problem in reading");
 		}else if(strcmp(buffer,"stop")){
 			if((dir = opendir(buffer)) == NULL)	//open directory
@@ -118,7 +121,7 @@ int main(int argc, char const *argv[]){
 		}
 
 	}while(strcmp(buffer,"stop"));
-	// printTree(root,PrintPatient);
+	printTree(root,PrintPatient);
 	free(guard);
 	deleteTree(root,deletePatient);
 	free(date1);free(date2);

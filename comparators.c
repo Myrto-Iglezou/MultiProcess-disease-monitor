@@ -8,7 +8,6 @@ int CompareDates(const void* FDate,const void* SDate){
 	char day1[3],day2[3],month1[3],month2[3],year1[5],year2[5];
 	const char s[2] = "-";
    	char *token;
-
     strcpy(temp,FirstDate);
     token = strtok(temp, s);
 

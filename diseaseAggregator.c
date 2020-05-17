@@ -10,6 +10,14 @@
 #include <fcntl.h>
 #define err(mess){fprintf(stderr,"ERROR: %s\n",mess);exit(1);}
 
+typedef struct workerInfo{
+	char* writeFifo;
+	char* readFifo;
+	int writeFd;
+	int readFd; 
+	pid_t pid;
+}workerInfo;
+
 int main(int argc, char const *argv[]){
 	
 	int numWorkers, bufferSize;
@@ -18,7 +26,8 @@ int main(int argc, char const *argv[]){
 	DIR * dir;
 	struct dirent * dir_info;
 	int numOfdir=0;
-	char filed[10];
+	char pidfdr[10];
+	char pidfdw[10];
 	char fifoBuffer[10];
 
 	/*---------------------------- Read from the input -------------------------------*/
@@ -37,23 +46,36 @@ int main(int argc, char const *argv[]){
 
 	/*------------------------------- Create Workers -----------------------------------*/
 
-	char *fifo[numWorkers];
-	int fd[numWorkers];
-	char temp[5];
-
+	workerInfo* workerArray[numWorkers];
 	for(int i=0; i<numWorkers ;i++){
-		fifo[i] = malloc(5*sizeof(char));
+		workerArray[i] = malloc(sizeof(workerInfo));
 	}
 
+	char rfifo[5];
+	char wfifo[5];
+
 	for(int i=0; i<numWorkers ;i++){
-		sprintf(temp,"%d",i);
-           	
-		strcpy(fifo[i],temp);
+		sprintf(rfifo,"%d",i);
+		strcat(rfifo,"r");
+		sprintf(wfifo,"%d",i);
+		strcat(wfifo,"w");
+
+        workerArray[i]->writeFifo = malloc((strlen(rfifo)+1)*sizeof(char));
+		strcpy( workerArray[i]->writeFifo,rfifo);
+
+		workerArray[i]->readFifo = malloc((strlen(wfifo)+1)*sizeof(char));
+		strcpy( workerArray[i]->readFifo,wfifo);
 		
-		if(mkfifo(fifo[i],0666) == -1)
+		if(mkfifo(workerArray[i]->writeFifo ,0666) == -1)
 			err("No fifo was created");
 
-		if((fd[i] = open(fifo[i], O_RDWR )) < 0)
+		if(mkfifo(workerArray[i]->readFifo,0666) == -1)
+			err("No fifo was created");
+
+		if((workerArray[i]->writeFd = open(workerArray[i]->writeFifo, O_RDWR | O_NONBLOCK)) < 0)
+			err("Could not open fifo");
+
+		if((workerArray[i]->readFd = open(workerArray[i]->readFifo, O_RDWR )) < 0)
 			err("Could not open fifo");
 
 		pid = fork();
@@ -62,9 +84,11 @@ int main(int argc, char const *argv[]){
            	err("---fork failed---" );
 
         if(pid == 0){
+        	workerArray[i]->pid = getpid();
         	sprintf(fifoBuffer,"%d",bufferSize);
-           	sprintf(filed,"%d",fd[i]);
-          	execlp("./worker","worker","-fd",filed,"-b",fifoBuffer,NULL);
+           	sprintf(pidfdr,"%d",workerArray[i]->writeFd);
+           	sprintf(pidfdw,"%d",workerArray[i]->readFd );
+           	execlp("./worker","worker","-wfd",pidfdw,"-rfd",pidfdr,"-b",fifoBuffer,NULL);
         }      
 	}
 
@@ -87,22 +111,22 @@ int main(int argc, char const *argv[]){
 			w=0;
 		strcat(path,"/");
 		strcat(path,dir_info->d_name);
-		
-		if(write(fd[w],path,bufferSize)<0)
-			err("Problem in writing")
+
+		if(write(workerArray[w]->writeFd,path,bufferSize)<0)
+			err("Problem in writing");
 		w++;     
 	}
 
 	for(int i=0; i<numWorkers ;i++){
-		if(write(fd[i],"stop",bufferSize)<0)
+		if(write(workerArray[i]->writeFd,"stop",bufferSize)<0)
 			err("Problem in writing");
 	}
 
-	while(wait(NULL)>0);
-
 	for(int i=0; i<numWorkers ;i++){
-		close(fd[i]);
-		unlink(fifo[i]);
+		close(workerArray[i]->writeFd);
+		close(workerArray[i]->readFd);
+		unlink(workerArray[i]->writeFifo);
+		unlink(workerArray[i]->readFifo);
 	}
 
 	/*----------------------------------------------------------------------------------*/
@@ -152,10 +176,12 @@ int main(int argc, char const *argv[]){
 	// 	}else if(strcmp(buff,"/exit"))
 	// 		printf("Wrong input\n");
 	// }
-
+	while(wait(NULL)>0);
 	closedir(dir);
 	for(int i=0; i<numWorkers ;i++){
-		free(fifo[i]);
+		free(workerArray[i]->writeFifo);
+		free(workerArray[i]->readFifo);
+		free(workerArray[i]); 
 	}
 	return 0;
 }

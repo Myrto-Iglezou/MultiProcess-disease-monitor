@@ -16,6 +16,6 @@ typedef struct Patient{
 
 Patient* createPatient(char* recordID,char* firstName,char* lastName,char* disease,char* country,char* entryDate,char* exitDate,int age);
 void deletePatient(const void* pat);
-void PrintPatient(Patient * pat);
+void PrintPatient(const void* patient);
 
 
