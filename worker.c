@@ -45,12 +45,36 @@ int main(int argc, char const *argv[]){
 			bufferSize = atoi(argv[i+1]);
 	}
 
-	char buffer[bufferSize];
+	char* buffer = malloc(sizeof(char));
+	// memset(buffer,0,sizeof(buffer));
+	char* readBuffer = malloc((bufferSize+1)*sizeof(char));
+	memset(readBuffer,0,sizeof(readBuffer));
+	int message_size;
+	int countBytes=0;
 
 	do{
-		if((read(rfd,buffer,bufferSize))<0){
-			err("Problem in reading");
-		}else if(strcmp(buffer,"stop")){
+		
+		
+		printf("--------------------------------\n");
+	
+		if(read(rfd,&message_size,sizeof(int))<0)
+			err("Problem in reading...");
+		free(buffer);
+		buffer = malloc((message_size+1)*sizeof(char));
+		strcpy(buffer,"");
+		countBytes=0;
+
+		while(countBytes<message_size){
+			
+			if(read(rfd,readBuffer,bufferSize)<0)
+				err("Problem in reading!");
+			strcat(buffer,readBuffer);
+			countBytes = strlen(buffer);
+		}
+		printf("%s\n",buffer );
+
+		if(strcmp(buffer,"stop")){
+			printf("%s\n",buffer );
 			if((dir = opendir(buffer)) == NULL)	//open directory
 				err("Can not open directory");
 			n=0;
@@ -119,7 +143,7 @@ int main(int argc, char const *argv[]){
 				
 			closedir(dir);
 		}
-
+		
 	}while(strcmp(buffer,"stop"));
 	printTree(root,PrintPatient);
 	free(guard);

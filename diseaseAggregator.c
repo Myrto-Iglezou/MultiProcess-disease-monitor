@@ -92,19 +92,32 @@ int main(int argc, char const *argv[]){
         }      
 	}
 
+	
 	/*----------------------- Distribute the subdirectories -----------------------------*/
 
 	if((dir = opendir(input_dir)) == NULL)	//open directory
 		err("Can not open directory");
 	
 	int w=0;
-	char path[bufferSize];
+	char path[256];
 	memset(path,0,bufferSize);
+	char* strPointer;
+	char tempStr[256];
+	int size;
+	int message_size;
+	memset(tempStr,0,sizeof(tempStr));
 
-	int t=0;
-	
+
+	int count=0;
+	char cwd[256];
+	getcwd(cwd,sizeof(cwd));
+		
 	while((dir_info=readdir(dir)) != NULL){
-		strcpy(path,input_dir); 
+		count=0;
+		strcpy(path,cwd);
+		strcat(path,"/");
+		strcat(path,input_dir); 
+
 		if(!strcmp(dir_info->d_name,".") || !strcmp(dir_info->d_name,".."))	continue;
 
 		if(w == numWorkers)
@@ -112,8 +125,40 @@ int main(int argc, char const *argv[]){
 		strcat(path,"/");
 		strcat(path,dir_info->d_name);
 
-		if(write(workerArray[w]->writeFd,path,bufferSize)<0)
-			err("Problem in writing");
+		if(strlen(path) < bufferSize ){
+			if(write(workerArray[w]->writeFd,path,bufferSize)<0)
+				err("Problem in writing");
+		}else{
+			strPointer = &path[0];
+			// printf("%s\n",strPointer );
+			size = bufferSize;
+			message_size = strlen(path);
+			if(write(workerArray[w]->writeFd,&message_size,sizeof(int))<0)
+				err("Problem in writing");
+			printf("%d\n",message_size );
+
+			while(count < (strlen(path))){
+
+				strPointer = &path[0];
+				strPointer+=count;
+				
+				if(((strlen(path)+1)-count)<size){
+					size = (strlen(path)+1)-count;					
+				}
+				strncpy(tempStr,strPointer,size);
+				if(write(workerArray[w]->writeFd,tempStr,size)<0)
+					err("Problem in writing");
+				count+=size;
+				printf("---> %s\n",tempStr );
+			}
+				
+
+
+		}
+
+
+		
+		
 		w++;     
 	}
 
