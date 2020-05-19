@@ -15,7 +15,6 @@ typedef struct workerInfo{
 	char* readFifo;
 	int writeFd;
 	int readFd; 
-	pid_t pid;
 }workerInfo;
 
 int main(int argc, char const *argv[]){
@@ -84,14 +83,12 @@ int main(int argc, char const *argv[]){
            	err("---fork failed---" );
 
         if(pid == 0){
-        	workerArray[i]->pid = getpid();
         	sprintf(fifoBuffer,"%d",bufferSize);
            	sprintf(pidfdr,"%d",workerArray[i]->writeFd);
            	sprintf(pidfdw,"%d",workerArray[i]->readFd );
            	execlp("./worker","worker","-wfd",pidfdw,"-rfd",pidfdr,"-b",fifoBuffer,NULL);
         }      
 	}
-
 	
 	/*----------------------- Distribute the subdirectories -----------------------------*/
 
@@ -111,60 +108,63 @@ int main(int argc, char const *argv[]){
 	int count=0;
 	char cwd[256];
 	getcwd(cwd,sizeof(cwd));
+	int numOffiles = 0;
+
+	while((dir_info = readdir(dir)) != NULL){
+		if(!strcmp(dir_info->d_name,".") || !strcmp(dir_info->d_name,".."))	continue;
+		numOffiles++;
+	}
+	rewinddir(dir);
+	int filesPerWorker = numOffiles/numWorkers;
+	int extraFiles = numOffiles%numWorkers;
+	int totalFiles = 0;
+
+	for(int i = 0; i < numWorkers; i++){
 		
+		totalFiles = filesPerWorker;
+		
+		if(extraFiles>i)
+			totalFiles+=1;
+
+		if(write(workerArray[i]->writeFd,&totalFiles,sizeof(int))<0)
+			err("Problem in writing");
+	}
+
 	while((dir_info=readdir(dir)) != NULL){
-		count=0;
-		strcpy(path,cwd);
-		strcat(path,"/");
-		strcat(path,input_dir); 
 
 		if(!strcmp(dir_info->d_name,".") || !strcmp(dir_info->d_name,".."))	continue;
 
+		count=0;
+
 		if(w == numWorkers)
 			w=0;
+
+		strcpy(path,cwd);
+		strcat(path,"/");
+		strcat(path,input_dir); 
 		strcat(path,"/");
 		strcat(path,dir_info->d_name);
 
-		if(strlen(path) < bufferSize ){
-			if(write(workerArray[w]->writeFd,path,bufferSize)<0)
-				err("Problem in writing");
-		}else{
-			strPointer = &path[0];
-			// printf("%s\n",strPointer );
-			size = bufferSize;
-			message_size = strlen(path);
-			if(write(workerArray[w]->writeFd,&message_size,sizeof(int))<0)
-				err("Problem in writing");
-			printf("%d\n",message_size );
-
-			while(count < (strlen(path))){
-
-				strPointer = &path[0];
-				strPointer+=count;
-				
-				if(((strlen(path)+1)-count)<size){
-					size = (strlen(path)+1)-count;					
-				}
-				strncpy(tempStr,strPointer,size);
-				if(write(workerArray[w]->writeFd,tempStr,size)<0)
-					err("Problem in writing");
-				count+=size;
-				printf("---> %s\n",tempStr );
-			}
-				
-
-
-		}
-
-
-		
-		
-		w++;     
-	}
-
-	for(int i=0; i<numWorkers ;i++){
-		if(write(workerArray[i]->writeFd,"stop",bufferSize)<0)
+		strPointer = &path[0];
+		size = bufferSize;
+		message_size = strlen(path);
+		if(write(workerArray[w]->writeFd,&message_size,sizeof(int))<0)
 			err("Problem in writing");
+
+		while(count < (strlen(path))){
+
+			strPointer = &path[0];
+			strPointer+=count;
+			
+			if(((strlen(path)+1)-count)<size){
+				size = (strlen(path)+1)-count;					
+			}
+			strncpy(tempStr,strPointer,size);
+			if(write(workerArray[w]->writeFd,tempStr,size)<0)
+				err("Problem in writing");
+			count+=size;
+		}
+		w++;     
 	}
 
 	for(int i=0; i<numWorkers ;i++){
@@ -187,40 +187,40 @@ int main(int argc, char const *argv[]){
 	/*--------------------- Read the commands till the "/exit" -------------------------*/
 	
 
-	// while(strcmp(buff,"/exit")){
-	// 	printf("\033[1;36mREQUEST:  \033[0m");
-	// 	scanf("%s",buff);
+	while(strcmp(buff,"/exit")){
+		printf("\033[1;36mREQUEST:  \033[0m");
+		scanf("%s",buff);
 
-	// 	if(!strcmp(buff,"/listCountries")){
+		if(!strcmp(buff,"/listCountries")){
 		
-	// 	}if(!strcmp(buff,"/diseaseFrequency")){
-	// 		scanf("%s %s %s",VirusName,date1,date2);
-	// 		ch = getchar();
-	// 		if(ch != '\n')
-	// 			scanf("%s",diseaseCountry);
-	// 		if(!CheckDate(date1,date2)){
-	// 			printf("\033[1;31mERROR: \033[0mSomething went wrong with your date input\n");
-	// 		}else
-	// 			diseaseFrequency(diseaseCountry,VirusName,diseaseHashtable,countryHashtable,date1,date2);		
-	// 	}else if(!strcmp(buff,"/topk-AgeRanges")){
-	// 		scanf("%s %s",k,country,VirusName,date1,date2);
+		}if(!strcmp(buff,"/diseaseFrequency")){
+			scanf("%s %s %s",VirusName,date1,date2);
+			ch = getchar();
+			if(ch != '\n')
+				scanf("%s",diseaseCountry);
+			if(!CheckDate(date1,date2)){
+				printf("\033[1;31mERROR: \033[0mSomething went wrong with your date input\n");
+			}else
+				diseaseFrequency(diseaseCountry,VirusName,diseaseHashtable,countryHashtable,date1,date2);		
+		}else if(!strcmp(buff,"/topk-AgeRanges")){
+			scanf("%s %s",k,country,VirusName,date1,date2);
 		
-	// 	}else if(!strcmp(buff,"/searchPatientRecord")){
-	// 		char recordID[32] = "-";
-	// 		scanf("%s",recordID);
-	// 	}else if(!strcmp(buff,"/numPatientAdmissions")){
-	// 		scanf("%s %s %s",VirusName,date1,date2);
-	// 		ch = getchar();
-	// 		if(ch != '\n')
-	// 			scanf("%s",diseaseCountry);
-	// 	}else if(!strcmp(buff,"/numPatientDischarges")){
-	// 		scanf("%s %s %s",VirusName,date1,date2);
-	// 		ch = getchar();
-	// 		if(ch != '\n')
-	// 			scanf("%s",diseaseCountry);
-	// 	}else if(strcmp(buff,"/exit"))
-	// 		printf("Wrong input\n");
-	// }
+		}else if(!strcmp(buff,"/searchPatientRecord")){
+			char recordID[32] = "-";
+			scanf("%s",recordID);
+		}else if(!strcmp(buff,"/numPatientAdmissions")){
+			scanf("%s %s %s",VirusName,date1,date2);
+			ch = getchar();
+			if(ch != '\n')
+				scanf("%s",diseaseCountry);
+		}else if(!strcmp(buff,"/numPatientDischarges")){
+			scanf("%s %s %s",VirusName,date1,date2);
+			ch = getchar();
+			if(ch != '\n')
+				scanf("%s",diseaseCountry);
+		}else if(strcmp(buff,"/exit"))
+			printf("Wrong input\n");
+	}
 	while(wait(NULL)>0);
 	closedir(dir);
 	for(int i=0; i<numWorkers ;i++){

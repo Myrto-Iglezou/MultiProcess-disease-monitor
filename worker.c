@@ -33,7 +33,7 @@ int main(int argc, char const *argv[]){
 	char* date1 = malloc((strlen(DATE)+1)*sizeof(char));
 	char* date2 = malloc((strlen(DATE)+1)*sizeof(char));
 	char* token;
-	char tempstr[40];
+	char tempstr[256];
 
 	for(int i=0; i<argc;i++){
 		
@@ -45,107 +45,101 @@ int main(int argc, char const *argv[]){
 			bufferSize = atoi(argv[i+1]);
 	}
 
-	char* buffer = malloc(sizeof(char));
-	// memset(buffer,0,sizeof(buffer));
-	char* readBuffer = malloc((bufferSize+1)*sizeof(char));
-	memset(readBuffer,0,sizeof(readBuffer));
+	char* buffer;
+	char readBuffer[256];
 	int message_size;
 	int countBytes=0;
+	int numOfFiles=0;
+	int maxFiles=0;
 
-	do{
-		
-		
-		printf("--------------------------------\n");
-	
+	if(read(rfd,&maxFiles,sizeof(int))<0)
+		err("Problem in reading bytes");
+
+	while(numOfFiles<maxFiles){
+
 		if(read(rfd,&message_size,sizeof(int))<0)
-			err("Problem in reading...");
-		free(buffer);
+			err("Problem in reading bytes");
+
 		buffer = malloc((message_size+1)*sizeof(char));
 		strcpy(buffer,"");
 		countBytes=0;
-
-		while(countBytes<message_size){
-			
-			if(read(rfd,readBuffer,bufferSize)<0)
+		while(countBytes<message_size){			
+			if((num = read(rfd,readBuffer,bufferSize))<0)
 				err("Problem in reading!");
-			strcat(buffer,readBuffer);
+			strncat(buffer,readBuffer,num);
 			countBytes = strlen(buffer);
 		}
-		printf("%s\n",buffer );
 
-		if(strcmp(buffer,"stop")){
-			printf("%s\n",buffer );
-			if((dir = opendir(buffer)) == NULL)	//open directory
-				err("Can not open directory");
-			n=0;
-			count=0;
-			while((dir_info = readdir(dir)) != NULL){
-				count++;
-			}
-			closedir(dir);
-			char *namelist[count];
-			if((dir = opendir(buffer)) == NULL)	//open directory
-				err("Can not open directory");
-			while((dir_info = readdir(dir)) != NULL){
-				strcpy(path,buffer); 
-				if(!strcmp(dir_info->d_name,".") || !strcmp(dir_info->d_name,".."))	continue;
-				namelist[n] = malloc((strlen(DATE)+1)*sizeof(char)); 
-				strcpy(namelist[n],dir_info->d_name);
-				n++;
-			}
-			
-			qsort(&namelist[0],n-1,sizeof(char*),CompareDates);	
-	
-			for(int i=0 ; i<n-1 ; i++){
-				strcpy(path,buffer); 
-				strcat(path,"/");
-
-				strcpy(tempstr,path);
-				token = strtok(tempstr,"/");
-				while(token !=NULL){
-					strcpy(country,token);
-					token = strtok(NULL,"/");
-				}
-				
-				strcat(path,namelist[i]);
-				
-				if((fp = fopen(path,"r"))== NULL)	//open file
-					err("Can not open file");
-
-				while(!feof(fp)){
-					fscanf(fp,"%s %s %s %s %s %s \n",recordID,state,patientFirstName,patientLastName,disease,age);
-					if(!strcmp(state,"ENTER")){
-						strcpy(date1,namelist[i]);
-						strcpy(date2,"-");
-					}else if(!strcmp(state,"EXIT")){
-						strcpy(date2,namelist[i]);
-						strcpy(date1,"-");
-					}
-					
-					pat =  createPatient(recordID,patientFirstName,patientLastName,disease,country,date1,date2,atoi(age));
-					tempNode = FindData(root,pat,ComparePatientsID);
-					if(tempNode==guard && !strcmp(state,"ENTER"))
-						insertion(&root,pat,ComparePatientsID);
-					else if(tempNode!=guard && !strcmp(state,"EXIT")){
-						deletePatient(pat);
-						pat = tempNode->data;
-						strcpy(date1,pat->entryDate);
-						if(CompareDates(&date1,&date2)<=0)
-							strcpy(pat->exitDate,date2);
-					}else	
-						deletePatient(pat);
-				}
-				fclose(fp);
-			}
-			for (int i = 0; i < n; i++){
-				free(namelist[i]);
-			}
-				
-			closedir(dir);
+		if((dir = opendir(buffer)) == NULL)	//open directory
+			err("Can not open directory");
+		n=0;
+		count=0;
+		while((dir_info = readdir(dir)) != NULL){
+			count++;
+		}
+		char *namelist[count];
+		rewinddir(dir);
+		while((dir_info = readdir(dir)) != NULL){
+			strcpy(path,buffer); 
+			if(!strcmp(dir_info->d_name,".") || !strcmp(dir_info->d_name,".."))	continue;
+			namelist[n] = malloc((strlen(DATE)+1)*sizeof(char)); 
+			strcpy(namelist[n],dir_info->d_name);
+			n++;
 		}
 		
-	}while(strcmp(buffer,"stop"));
-	printTree(root,PrintPatient);
+		qsort(&namelist[0],n-1,sizeof(char*),CompareDates);	
+
+		for(int i=0 ; i<n-1 ; i++){
+			strcpy(path,buffer); 
+			strcat(path,"/");
+
+			strcpy(tempstr,path);
+			token = strtok(tempstr,"/");
+			while(token !=NULL){
+				strcpy(country,token);
+				token = strtok(NULL,"/");
+			}
+			
+			strcat(path,namelist[i]);
+			
+			if((fp = fopen(path,"r"))== NULL)	//open file
+				err("Can not open file");
+
+			while(!feof(fp)){
+				fscanf(fp,"%s %s %s %s %s %s \n",recordID,state,patientFirstName,patientLastName,disease,age);
+				if(!strcmp(state,"ENTER")){
+					strcpy(date1,namelist[i]);
+					strcpy(date2,"-");
+				}else if(!strcmp(state,"EXIT")){
+					strcpy(date2,namelist[i]);
+					strcpy(date1,"-");
+				}
+				
+				pat =  createPatient(recordID,patientFirstName,patientLastName,disease,country,date1,date2,atoi(age));
+				tempNode = FindData(root,pat,ComparePatientsID);
+				if(tempNode==guard && !strcmp(state,"ENTER"))
+					insertion(&root,pat,ComparePatientsID);
+				else if(tempNode!=guard && !strcmp(state,"EXIT")){
+					deletePatient(pat);
+					pat = tempNode->data;
+					strcpy(date1,pat->entryDate);
+					if(CompareDates(&date1,&date2)<=0)
+						strcpy(pat->exitDate,date2);
+				}else	
+					deletePatient(pat);
+			}
+			fclose(fp);
+		}
+		for (int i = 0; i < n; i++){
+			free(namelist[i]);
+		}
+		free(buffer);
+		closedir(dir);
+		numOfFiles++;
+	}
+
+
+	// printTree(root,PrintPatient);
 	free(guard);
 	deleteTree(root,deletePatient);
 	free(date1);free(date2);
