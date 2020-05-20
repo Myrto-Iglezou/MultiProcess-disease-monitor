@@ -236,6 +236,14 @@ void deleteTree(Treenode * root,void (*deletion)(const void*)){
 	free(root);	
 }
 
+void deleteTreeNoData(Treenode * root){
+	if(root==guard)
+		return;
+	deleteTreeNoData(root->left);
+	deleteTreeNoData(root->right);
+	free(root);	
+}
+
 void printTree(Treenode * root,void (*printData)(const void*)){	//print tree 
 	if(root==guard)
 		return;

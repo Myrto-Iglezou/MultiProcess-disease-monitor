@@ -1,8 +1,8 @@
 # in order to execute this "Makefile" just type "make"
 
-OBJS   = diseaseAggregator.o worker.o patient.o RBT.o comparators.o
-SOURCE = diseaseAggregator.c worker.c patient.c RBT.c comparators.c
-HEADER = patient.h RBT.h comparators.h
+OBJS   = diseaseAggregator.o worker.o patient.o RBT.o comparators.o hashtable.o
+SOURCE = diseaseAggregator.c worker.c patient.c RBT.c comparators.c hashtable.c
+HEADER = patient.h RBT.h comparators.h hashtable.h
 OUT    = diseaseAggregator 
 CC     = gcc
 FLAGS  = -g -c
@@ -14,8 +14,8 @@ diseaseAggregator: diseaseAggregator.o
 
 # create/compile the individual files >>seperetaly<<
 
-worker: worker.o patient.o RBT.o comparators.o
-	$(CC) -g worker.o patient.o RBT.o comparators.o -o worker 
+worker: worker.o patient.o RBT.o comparators.o hashtable.o
+	$(CC) -g worker.o patient.o RBT.o comparators.o  hashtable.o -o worker 
 
 
 diseaseAggregator.o: diseaseAggregator.c 
@@ -32,6 +32,9 @@ RBT.o: RBT.c
 
 comparators.o: comparators.c
 	$(CC) $(FLAGS) comparators.c
+
+hashtable.o: hashtable.c
+	$(CC) $(FLAGS) hashtable.c
 
 # clean house
 clean:

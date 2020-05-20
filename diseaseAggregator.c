@@ -187,40 +187,40 @@ int main(int argc, char const *argv[]){
 	/*--------------------- Read the commands till the "/exit" -------------------------*/
 	
 
-	while(strcmp(buff,"/exit")){
-		printf("\033[1;36mREQUEST:  \033[0m");
-		scanf("%s",buff);
+	// while(strcmp(buff,"/exit")){
+	// 	printf("\033[1;36mREQUEST:  \033[0m");
+	// 	scanf("%s",buff);
 
-		if(!strcmp(buff,"/listCountries")){
+	// 	if(!strcmp(buff,"/listCountries")){
 		
-		}if(!strcmp(buff,"/diseaseFrequency")){
-			scanf("%s %s %s",VirusName,date1,date2);
-			ch = getchar();
-			if(ch != '\n')
-				scanf("%s",diseaseCountry);
-			if(!CheckDate(date1,date2)){
-				printf("\033[1;31mERROR: \033[0mSomething went wrong with your date input\n");
-			}else
-				diseaseFrequency(diseaseCountry,VirusName,diseaseHashtable,countryHashtable,date1,date2);		
-		}else if(!strcmp(buff,"/topk-AgeRanges")){
-			scanf("%s %s",k,country,VirusName,date1,date2);
+	// 	}if(!strcmp(buff,"/diseaseFrequency")){
+	// 		scanf("%s %s %s",VirusName,date1,date2);
+	// 		ch = getchar();
+	// 		if(ch != '\n')
+	// 			scanf("%s",diseaseCountry);
+	// 		if(!CheckDate(date1,date2)){
+	// 			printf("\033[1;31mERROR: \033[0mSomething went wrong with your date input\n");
+	// 		}else
+	// 			diseaseFrequency(diseaseCountry,VirusName,diseaseHashtable,countryHashtable,date1,date2);		
+	// 	}else if(!strcmp(buff,"/topk-AgeRanges")){
+	// 		scanf("%s %s",k,country,VirusName,date1,date2);
 		
-		}else if(!strcmp(buff,"/searchPatientRecord")){
-			char recordID[32] = "-";
-			scanf("%s",recordID);
-		}else if(!strcmp(buff,"/numPatientAdmissions")){
-			scanf("%s %s %s",VirusName,date1,date2);
-			ch = getchar();
-			if(ch != '\n')
-				scanf("%s",diseaseCountry);
-		}else if(!strcmp(buff,"/numPatientDischarges")){
-			scanf("%s %s %s",VirusName,date1,date2);
-			ch = getchar();
-			if(ch != '\n')
-				scanf("%s",diseaseCountry);
-		}else if(strcmp(buff,"/exit"))
-			printf("Wrong input\n");
-	}
+	// 	}else if(!strcmp(buff,"/searchPatientRecord")){
+	// 		char recordID[32] = "-";
+	// 		scanf("%s",recordID);
+	// 	}else if(!strcmp(buff,"/numPatientAdmissions")){
+	// 		scanf("%s %s %s",VirusName,date1,date2);
+	// 		ch = getchar();
+	// 		if(ch != '\n')
+	// 			scanf("%s",diseaseCountry);
+	// 	}else if(!strcmp(buff,"/numPatientDischarges")){
+	// 		scanf("%s %s %s",VirusName,date1,date2);
+	// 		ch = getchar();
+	// 		if(ch != '\n')
+	// 			scanf("%s",diseaseCountry);
+	// 	}else if(strcmp(buff,"/exit"))
+	// 		printf("Wrong input\n");
+	// }
 	while(wait(NULL)>0);
 	closedir(dir);
 	for(int i=0; i<numWorkers ;i++){

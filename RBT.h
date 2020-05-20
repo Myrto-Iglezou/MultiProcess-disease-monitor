@@ -34,4 +34,6 @@ void printTree(Treenode * root,void (*printData)(const void*));
 
 Treenode* createGuard();
 
+void deleteTreeNoData(Treenode * root);
+
 

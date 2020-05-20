@@ -8,8 +8,7 @@
 #include <signal.h>
 #include <dirent.h>
 #include <fcntl.h>
-#include "comparators.h" 
-#include "RBT.h"
+#include "utils.h"
 #define TRUE 1
 #define FALSE 0
 #define err(mess){fprintf(stderr,"ERROR: %s\n",mess);exit(1);}
@@ -32,8 +31,20 @@ int main(int argc, char const *argv[]){
 	Treenode * tempNode;
 	char* date1 = malloc((strlen(DATE)+1)*sizeof(char));
 	char* date2 = malloc((strlen(DATE)+1)*sizeof(char));
+	char* buffer;
+	char readBuffer[256];
+	int message_size;
+	int countBytes=0;
+	int numOfFiles=0;
+	int maxFiles=0;
 	char* token;
 	char tempstr[256];
+	HashTable* diseaseHashtable = NULL;
+	HashTable* countryHashtable = NULL;
+	HashTable* tableForStatistics = NULL;
+	int numOfentries = 20;
+
+	/*---------------------------- Read from the input -------------------------------*/
 
 	for(int i=0; i<argc;i++){
 		
@@ -45,15 +56,26 @@ int main(int argc, char const *argv[]){
 			bufferSize = atoi(argv[i+1]);
 	}
 
-	char* buffer;
-	char readBuffer[256];
-	int message_size;
-	int countBytes=0;
-	int numOfFiles=0;
-	int maxFiles=0;
-
 	if(read(rfd,&maxFiles,sizeof(int))<0)
 		err("Problem in reading bytes");
+
+		/*----------------------- Create the two hashtables -----------------------*/
+
+	if(createHashTable(&diseaseHashtable,numOfentries)==FALSE){
+		printf("error\n");
+		//printf("\033[1;31mERROR: \033[0m: there's no space for a record in the disease hashtable\n");
+		DeleteHashTable(diseaseHashtable);
+		free(guard);
+		return 0;
+	}
+	if(createHashTable(&countryHashtable, maxFiles)==FALSE){
+		printf("error\n");
+		//printf("\033[1;31mERROR: \033[0m: there's no space for a record in the country hashtable\n");
+		DeleteHashTable(diseaseHashtable);
+		DeleteHashTable(countryHashtable);
+		free(guard);
+		return 0;
+	}
 
 	while(numOfFiles<maxFiles){
 
@@ -89,6 +111,14 @@ int main(int argc, char const *argv[]){
 		
 		qsort(&namelist[0],n-1,sizeof(char*),CompareDates);	
 
+		if(createHashTable(&tableForStatistics,numOfentries)==FALSE){
+			printf("error\n");
+			//printf("\033[1;31mERROR: \033[0m: there's no space for a record in the disease hashtable\n");
+			DeleteHashTable(tableForStatistics);
+			free(guard);
+			return 0;
+		}
+
 		for(int i=0 ; i<n-1 ; i++){
 			strcpy(path,buffer); 
 			strcat(path,"/");
@@ -117,9 +147,12 @@ int main(int argc, char const *argv[]){
 				
 				pat =  createPatient(recordID,patientFirstName,patientLastName,disease,country,date1,date2,atoi(age));
 				tempNode = FindData(root,pat,ComparePatientsID);
-				if(tempNode==guard && !strcmp(state,"ENTER"))
+				if(tempNode==guard && !strcmp(state,"ENTER")){
 					insertion(&root,pat,ComparePatientsID);
-				else if(tempNode!=guard && !strcmp(state,"EXIT")){
+					insertToHashTable(diseaseHashtable,pat,pat->disease,ComparePatientsDates);
+					insertToHashTable(countryHashtable,pat,pat->country,ComparePatientsDates);
+					insertToHashTable(tableForStatistics,pat,pat->disease,CompareAges);
+				}else if(tempNode!=guard && !strcmp(state,"EXIT")){
 					deletePatient(pat);
 					pat = tempNode->data;
 					strcpy(date1,pat->entryDate);
@@ -133,11 +166,16 @@ int main(int argc, char const *argv[]){
 		for (int i = 0; i < n; i++){
 			free(namelist[i]);
 		}
+		DeleteHashTable(tableForStatistics);
 		free(buffer);
 		closedir(dir);
 		numOfFiles++;
 	}
 
+	/*--------------------------- Clean the memory -------------------------------------*/ 
+
+	DeleteHashTable(diseaseHashtable);
+	DeleteHashTable(countryHashtable);
 
 	// printTree(root,PrintPatient);
 	free(guard);

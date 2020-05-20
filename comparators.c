@@ -57,11 +57,23 @@ int CompareDates(const void* FDate,const void* SDate){
 }
 
 int ComparePatientsID(const void* pat1,const void* pat2){
-	int id1 = atoi(((Patient*) pat1)->recordID);
-	int id2 = atoi(((Patient*) pat2)->recordID);
-	if(id1>id2)
+	char id1[10],id2[10];
+	strcpy(id1,((Patient*) pat1)->recordID);
+	strcpy(id2,((Patient*) pat2)->recordID);
+	return strcmp(id1,id2);
+}
+
+int ComparePatientsDates(const void* pat1,const void* pat2){
+	return 	CompareDates(&(((Patient*) pat1)->entryDate),(&((Patient*) pat2)->entryDate));
+}
+
+int CompareAges(const void* pat1,const void* pat2){
+	int age1,age2;
+	age1 = ((Patient*) pat1)->age;
+	age2 = ((Patient*) pat2)->age;
+	if(age1>age2)
 		return 1;
-	else if(id1<id2)
+	else if(age1<age2)
 		return -1;
 	else return 0;
 }
