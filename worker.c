@@ -43,6 +43,9 @@ int main(int argc, char const *argv[]){
 	HashTable* countryHashtable = NULL;
 	HashTable* tableForStatistics = NULL;
 	int numOfentries = 20;
+	char* strPointer;
+	char message[256];
+	statistics * stat;
 
 	/*---------------------------- Read from the input -------------------------------*/
 
@@ -161,7 +164,54 @@ int main(int argc, char const *argv[]){
 				}else	
 					deletePatient(pat);
 			}
+			
 			fclose(fp);
+			stat = malloc(sizeof(statistics));
+			strcpy(stat->date,namelist[i]);
+			strcpy(stat->country,country);
+			for(int i=0 ; i<4 ; i++){
+				stat->ranges[i] = 0;
+			}
+			Bucket* curBucket;
+			BucketRecord* record;
+			count=0;
+
+			for(int i=0; i<tableForStatistics->NumOfEntries; i++){			// for every disease in the hashtable
+				curBucket = tableForStatistics->listOfBuckets[i];
+				while(curBucket!=NULL){
+					for(int j=0 ; j<curBucket->currentRecords ; j++){
+						for(int i=0 ; i<4 ; i++)
+							stat->ranges[i] = 0;
+						count=0;
+						record = curBucket->records[j];
+						strcpy(stat->disease,record->data);
+						findRanges(&stat,record);
+						printStat(stat);
+					}
+					curBucket = curBucket->next;
+				}
+			}
+
+			free(stat);
+
+			// message_size = strlen(namelist[i]);
+			// if(write(workerArray[w]->writeFd,&message_size,sizeof(int))<0)
+			// 	err("Problem in writing");
+
+			// while(count < (strlen(path))){
+
+			// 	strPointer = &path[0];
+			// 	strPointer+=count;
+				
+			// 	if(((strlen(path)+1)-count)<size){
+			// 		size = (strlen(path)+1)-count;					
+			// 	}
+			// 	strncpy(tempStr,strPointer,size);
+			// 	if(write(writeFd,tempStr,size)<0)
+			// 		err("Problem in writing");
+			// 	count+=size;
+			// }
+
 		}
 		for (int i = 0; i < n; i++){
 			free(namelist[i]);

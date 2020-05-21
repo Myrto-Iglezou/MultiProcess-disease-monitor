@@ -9,3 +9,16 @@
 #include <dirent.h>
 #include <fcntl.h>
 #include "hashtable.h"
+
+typedef struct statistics{
+	char date[11];
+	char country[32];
+	char disease[32];
+	int ranges[4];
+}statistics;
+
+void findRanges(statistics** stat,BucketRecord* record);
+
+void searchTree(Treenode* root,statistics** stat);
+
+void printStat(statistics * stat);

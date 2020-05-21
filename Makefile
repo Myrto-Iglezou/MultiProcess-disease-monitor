@@ -1,21 +1,21 @@
 # in order to execute this "Makefile" just type "make"
 
-OBJS   = diseaseAggregator.o worker.o patient.o RBT.o comparators.o hashtable.o
-SOURCE = diseaseAggregator.c worker.c patient.c RBT.c comparators.c hashtable.c
-HEADER = patient.h RBT.h comparators.h hashtable.h
+OBJS   = diseaseAggregator.o worker.o patient.o RBT.o comparators.o hashtable.o utils.o
+SOURCE = diseaseAggregator.c worker.c patient.c RBT.c comparators.c hashtable.c utils.c
+HEADER = patient.h RBT.h comparators.h hashtable.h utils.h
 OUT    = diseaseAggregator 
 CC     = gcc
 FLAGS  = -g -c
 
 all: diseaseAggregator worker
 
-diseaseAggregator: diseaseAggregator.o 
-	$(CC) -g diseaseAggregator.o  -o diseaseAggregator 
+diseaseAggregator: diseaseAggregator.o utils.o
+	$(CC) -g diseaseAggregator.o utils.o  -o diseaseAggregator 
 
 # create/compile the individual files >>seperetaly<<
 
-worker: worker.o patient.o RBT.o comparators.o hashtable.o
-	$(CC) -g worker.o patient.o RBT.o comparators.o  hashtable.o -o worker 
+worker: worker.o patient.o RBT.o comparators.o hashtable.o utils.o
+	$(CC) -g worker.o patient.o RBT.o comparators.o utils.o  hashtable.o -o worker 
 
 
 diseaseAggregator.o: diseaseAggregator.c 
@@ -23,6 +23,10 @@ diseaseAggregator.o: diseaseAggregator.c
 
 worker.o: worker.c
 	$(CC) $(FLAGS) worker.c 
+
+utils.o: utils.c
+	$(CC) $(FLAGS) utils.c 
+
 
 patient.o: patient.c
 	$(CC) $(FLAGS) patient.c

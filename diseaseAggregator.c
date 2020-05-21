@@ -167,12 +167,19 @@ int main(int argc, char const *argv[]){
 		w++;     
 	}
 
+	for (int i = 0; i < numWorkers; i++){
+
+		//---
+	}
+
 	for(int i=0; i<numWorkers ;i++){
 		close(workerArray[i]->writeFd);
 		close(workerArray[i]->readFd);
 		unlink(workerArray[i]->writeFifo);
 		unlink(workerArray[i]->readFifo);
 	}
+
+	
 
 	/*----------------------------------------------------------------------------------*/
 
