@@ -18,7 +18,7 @@ int main(int argc, char const *argv[]){
 	int rfd,wfd,bufferSize;
 	char readFifo[32];
 	char writeFifo[32];
-	int num;
+	int num,k=0;
 	DIR * dir;
 	FILE * fp;
 	struct dirent * dir_info;
@@ -46,6 +46,8 @@ int main(int argc, char const *argv[]){
 	char* strPointer;
 	char message[256];
 	statistics * stat;
+	statistics * arrayOfStat;
+	arrayOfStat = malloc(sizeof(statistics));
 
 	/*---------------------------- Read from the input -------------------------------*/
 
@@ -114,15 +116,15 @@ int main(int argc, char const *argv[]){
 		
 		qsort(&namelist[0],n-1,sizeof(char*),CompareDates);	
 
-		if(createHashTable(&tableForStatistics,numOfentries)==FALSE){
-			printf("error\n");
-			//printf("\033[1;31mERROR: \033[0m: there's no space for a record in the disease hashtable\n");
-			DeleteHashTable(tableForStatistics);
-			free(guard);
-			return 0;
-		}
-
 		for(int i=0 ; i<n-1 ; i++){
+
+			if(createHashTable(&tableForStatistics,numOfentries)==FALSE){
+				printf("error\n");
+				//printf("\033[1;31mERROR: \033[0m: there's no space for a record in the disease hashtable\n");
+				DeleteHashTable(tableForStatistics);
+				free(guard);
+				return 0;
+			}
 			strcpy(path,buffer); 
 			strcat(path,"/");
 
@@ -186,43 +188,60 @@ int main(int argc, char const *argv[]){
 						record = curBucket->records[j];
 						strcpy(stat->disease,record->data);
 						findRanges(&stat,record);
-						printStat(stat);
+						arrayOfStat = realloc(arrayOfStat,(k+1)*sizeof(statistics));
+						memset(&arrayOfStat[k],0,sizeof(statistics));
+						arrayOfStat[k] = *stat;
+						k++;
 					}
 					curBucket = curBucket->next;
 				}
-			}
-
+			}		
+			DeleteHashTable(tableForStatistics);
 			free(stat);
-
-			// message_size = strlen(namelist[i]);
-			// if(write(workerArray[w]->writeFd,&message_size,sizeof(int))<0)
-			// 	err("Problem in writing");
-
-			// while(count < (strlen(path))){
-
-			// 	strPointer = &path[0];
-			// 	strPointer+=count;
-				
-			// 	if(((strlen(path)+1)-count)<size){
-			// 		size = (strlen(path)+1)-count;					
-			// 	}
-			// 	strncpy(tempStr,strPointer,size);
-			// 	if(write(writeFd,tempStr,size)<0)
-			// 		err("Problem in writing");
-			// 	count+=size;
-			// }
-
 		}
 		for (int i = 0; i < n; i++){
 			free(namelist[i]);
-		}
-		DeleteHashTable(tableForStatistics);
+		}		
 		free(buffer);
 		closedir(dir);
 		numOfFiles++;
 	}
 
+	/*--------------------------- Send Statistics -------------------------------------*/ 
+
+	statistics * tempstat;
+	message_size = k;
+	if(write(wfd,&message_size,sizeof(int))<0)
+		err("Problem in writing");
+
+	for (int i = 0; i < k; i++){
+		tempstat = calloc(1,sizeof(statistics));
+		stat = tempstat;
+		count=0;
+		message_size = sizeof(statistics);
+
+		// memcpy(tempstat,&arrayOfStat[i],sizeof(statistics));	
+
+		tempstat = &arrayOfStat[i];
+
+		while(count < message_size){
+			
+			tempstat+=count;
+
+			if(write(wfd,tempstat,bufferSize)<0)
+				err("Problem in writing");
+			count+=bufferSize;
+		}
+		tempstat = stat;
+		free(tempstat);
+	}
+
 	/*--------------------------- Clean the memory -------------------------------------*/ 
+
+	// for (int i = 0; i < k-1; ++i){
+	// 	free(&arrayOfStat[i]);
+	// }
+	free(arrayOfStat);
 
 	DeleteHashTable(diseaseHashtable);
 	DeleteHashTable(countryHashtable);

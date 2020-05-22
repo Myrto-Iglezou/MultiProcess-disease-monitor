@@ -8,6 +8,7 @@
 #include <signal.h>
 #include <dirent.h>
 #include <fcntl.h>
+#include "utils.h"
 #define err(mess){fprintf(stderr,"ERROR: %s\n",mess);exit(1);}
 
 typedef struct workerInfo{
@@ -28,6 +29,8 @@ int main(int argc, char const *argv[]){
 	char pidfdr[10];
 	char pidfdw[10];
 	char fifoBuffer[10];
+	int num;
+	char readBuffer[256];
 
 	/*---------------------------- Read from the input -------------------------------*/
 
@@ -78,14 +81,16 @@ int main(int argc, char const *argv[]){
 			err("Could not open fifo");
 
 		pid = fork();
-        
-        if(pid == -1)
-           	err("---fork failed---" );
+
+        if(pid == -1){
+           	err("fork failed" );
+        }
 
         if(pid == 0){
         	sprintf(fifoBuffer,"%d",bufferSize);
            	sprintf(pidfdr,"%d",workerArray[i]->writeFd);
            	sprintf(pidfdw,"%d",workerArray[i]->readFd );
+
            	execlp("./worker","worker","-wfd",pidfdw,"-rfd",pidfdr,"-b",fifoBuffer,NULL);
         }      
 	}
@@ -167,9 +172,32 @@ int main(int argc, char const *argv[]){
 		w++;     
 	}
 
+	statistics* stat,*temp;
+	
 	for (int i = 0; i < numWorkers; i++){
+		
+		if(read(workerArray[i]->readFd,&message_size,sizeof(int))<0)		// message_size --> how many statistics are
+			err("Problem in reading bytes");
 
-		//---
+		for (int i = 0; i < message_size; i++){
+			stat = malloc(sizeof(statistics));
+			temp = stat;
+			count = 0;
+			num = 0;
+		
+			while(count<sizeof(statistics)){
+				
+				if((num = read(workerArray[i]->readFd,stat,bufferSize))<0)
+					err("Problem in reading!");
+				// memcpy(stat,readBuffer,num);
+				count+=num;
+				stat+=num;
+			}
+			stat = temp;
+			printStat(stat);
+			free(stat);
+		}
+
 	}
 
 	for(int i=0; i<numWorkers ;i++){
