@@ -172,32 +172,112 @@ int main(int argc, char const *argv[]){
 		w++;     
 	}
 
-	statistics* stat,*temp;
+	statistics* stat = malloc(sizeof(statistics));
+	statistics *arrayOfStat;
+	char * buffer;
+	int numOfloops = 0;
 	
+
 	for (int i = 0; i < numWorkers; i++){
 		
-		if(read(workerArray[i]->readFd,&message_size,sizeof(int))<0)		// message_size --> how many statistics are
+		if(read(workerArray[i]->readFd,&numOfloops,sizeof(int))<0)		// numOfloops --> how many statistics are
 			err("Problem in reading bytes");
 
-		for (int i = 0; i < message_size; i++){
-			stat = malloc(sizeof(statistics));
-			temp = stat;
-			count = 0;
-			num = 0;
-		
-			while(count<sizeof(statistics)){
-				
-				if((num = read(workerArray[i]->readFd,stat,bufferSize))<0)
-					err("Problem in reading!");
-				// memcpy(stat,readBuffer,num);
-				count+=num;
-				stat+=num;
-			}
-			stat = temp;
-			printStat(stat);
-			free(stat);
-		}
+		arrayOfStat = malloc(numOfloops*sizeof(statistics));
 
+		for (int j = 0; j < numOfloops; j++){
+
+			count=0;
+
+			buffer = malloc(sizeof(stat->date));
+			strcpy(buffer,"");
+
+			if(read(workerArray[i]->readFd,&message_size,sizeof(int))<0)
+				err("Problem in writing");
+
+			while(count < message_size){
+
+				if((num = read(workerArray[i]->readFd,readBuffer,bufferSize))<0)
+					err("Problem in reading!");
+				strncat(buffer,readBuffer,num);
+				count += bufferSize;
+				// printf("--- %d ---- %d\n",num,count );
+			}
+			strcpy(arrayOfStat[j].date,buffer);
+
+			// printStat(&arrayOfStat[i]);
+			free(buffer);
+
+			count=0;
+
+			buffer = malloc(sizeof(stat->country));
+			strcpy(buffer,"");
+
+			if(read(workerArray[i]->readFd,&message_size,sizeof(int))<0)
+				err("Problem in writing");
+
+			while(count < message_size){
+
+				if((num = read(workerArray[i]->readFd,readBuffer,bufferSize))<0)
+					err("Problem in reading!");
+				strncat(buffer,readBuffer,num);
+				count += bufferSize;
+				// printf("--- %d ---- %d\n",num,count );
+			}
+			strcpy(arrayOfStat[j].country,buffer);
+			
+			// printStat(&arrayOfStat[i]);
+			free(buffer);
+
+			count=0;
+
+			buffer = malloc(sizeof(stat->disease));
+			strcpy(buffer,"");
+
+			if(read(workerArray[i]->readFd,&message_size,sizeof(int))<0)
+				err("Problem in writing");
+
+			while(count < message_size){
+
+				if((num = read(workerArray[i]->readFd,readBuffer,bufferSize))<0)
+					err("Problem in reading!");
+				strncat(buffer,readBuffer,num);
+				count += bufferSize;
+				// printf("--- %d ---- %d\n",num,count );
+			}
+			strcpy(arrayOfStat[j].disease,buffer);
+			
+			// printStat(&arrayOfStat[i]);
+			free(buffer);
+
+			for (int k = 0; k < 4; k++){
+				count=0;
+
+				buffer = malloc(sizeof(int));
+				strcpy(buffer,"");
+
+				if(read(workerArray[i]->readFd,&message_size,sizeof(int))<0)
+					err("Problem in writing");
+
+				// printf("%d\n",message_size );
+
+				while(count < message_size){
+
+					if((num = read(workerArray[i]->readFd,readBuffer,bufferSize))<0)
+						err("Problem in reading!");
+					strncat(buffer,readBuffer,num);
+					count += bufferSize;
+					// printf("--- %d ---- %d\n",num,count );
+				}
+				
+				arrayOfStat[j].ranges[k] = atoi(buffer);
+							
+				free(buffer);			
+			}
+			printStat(&arrayOfStat[j]);
+
+		}
+		free(arrayOfStat);
 	}
 
 	for(int i=0; i<numWorkers ;i++){
@@ -206,9 +286,8 @@ int main(int argc, char const *argv[]){
 		unlink(workerArray[i]->writeFifo);
 		unlink(workerArray[i]->readFifo);
 	}
-
+	free(stat);
 	
-
 	/*----------------------------------------------------------------------------------*/
 
 	char buff[32] = "-";

@@ -48,6 +48,7 @@ int main(int argc, char const *argv[]){
 	statistics * stat;
 	statistics * arrayOfStat;
 	arrayOfStat = malloc(sizeof(statistics));
+	stat = malloc(sizeof(statistics));
 
 	/*---------------------------- Read from the input -------------------------------*/
 
@@ -168,7 +169,6 @@ int main(int argc, char const *argv[]){
 			}
 			
 			fclose(fp);
-			stat = malloc(sizeof(statistics));
 			strcpy(stat->date,namelist[i]);
 			strcpy(stat->country,country);
 			for(int i=0 ; i<4 ; i++){
@@ -188,7 +188,7 @@ int main(int argc, char const *argv[]){
 						record = curBucket->records[j];
 						strcpy(stat->disease,record->data);
 						findRanges(&stat,record);
-						arrayOfStat = realloc(arrayOfStat,(k+1)*sizeof(statistics));
+						arrayOfStat = (statistics*) realloc(arrayOfStat,(k+1)*sizeof(statistics));
 						memset(&arrayOfStat[k],0,sizeof(statistics));
 						arrayOfStat[k] = *stat;
 						k++;
@@ -197,7 +197,6 @@ int main(int argc, char const *argv[]){
 				}
 			}		
 			DeleteHashTable(tableForStatistics);
-			free(stat);
 		}
 		for (int i = 0; i < n; i++){
 			free(namelist[i]);
@@ -209,38 +208,112 @@ int main(int argc, char const *argv[]){
 
 	/*--------------------------- Send Statistics -------------------------------------*/ 
 
-	statistics * tempstat;
 	message_size = k;
+	int size;
+	memset(tempstr,0,sizeof(tempstr));
+
 	if(write(wfd,&message_size,sizeof(int))<0)
 		err("Problem in writing");
 
 	for (int i = 0; i < k; i++){
-		tempstat = calloc(1,sizeof(statistics));
-		stat = tempstat;
+		
 		count=0;
-		message_size = sizeof(statistics);
+		strPointer = arrayOfStat[i].date;
+		size = bufferSize;
 
-		// memcpy(tempstat,&arrayOfStat[i],sizeof(statistics));	
+		message_size = strlen(arrayOfStat[i].date);
 
-		tempstat = &arrayOfStat[i];
+		if(write(wfd,&message_size,sizeof(int))<0)
+			err("Problem in writing");
 
 		while(count < message_size){
 			
-			tempstat+=count;
-
-			if(write(wfd,tempstat,bufferSize)<0)
+			if(((strlen(arrayOfStat[i].date)+1)-count)<size){
+				size = (strlen(arrayOfStat[i].date)+1)-count;					
+			}
+			strncpy(tempstr,strPointer,size);
+			// printf("%s\n",tempstr );
+			if(write(wfd,tempstr,size)<0)
 				err("Problem in writing");
-			count+=bufferSize;
+			count+=size;
+			strPointer+=size;
 		}
-		tempstat = stat;
-		free(tempstat);
+
+		count=0;
+		strPointer = arrayOfStat[i].country;
+		size = bufferSize;
+
+		message_size = strlen(arrayOfStat[i].country);
+
+		if(write(wfd,&message_size,sizeof(int))<0)
+			err("Problem in writing");
+
+		while(count < message_size){
+			
+			if(((strlen(arrayOfStat[i].country)+1)-count)<size){
+				size = (strlen(arrayOfStat[i].country)+1)-count;					
+			}
+			strncpy(tempstr,strPointer,size);
+			// printf("%s\n",tempstr );
+			if(write(wfd,tempstr,size)<0)
+				err("Problem in writing");
+			count+=size;
+			strPointer+=size;
+		}
+
+		count=0;
+		strPointer = arrayOfStat[i].disease;
+		size = bufferSize;
+
+		message_size = strlen(arrayOfStat[i].disease);
+
+		if(write(wfd,&message_size,sizeof(int))<0)
+			err("Problem in writing");
+
+		while(count < message_size){
+			
+			if(((strlen(arrayOfStat[i].disease)+1)-count)<size){
+				size = (strlen(arrayOfStat[i].disease)+1)-count;					
+			}
+			strncpy(tempstr,strPointer,size);
+			// printf("%s\n",tempstr );
+			if(write(wfd,tempstr,size)<0)
+				err("Problem in writing");
+			count+=size;
+			strPointer+=size;
+		}
+
+		buffer = malloc(sizeof(int));
+
+		for (int k = 0; k < 4; k++){
+
+			count=0;
+			sprintf(buffer,"%d",arrayOfStat[i].ranges[k]);
+			strPointer = buffer;
+			size = bufferSize;
+
+			message_size = strlen(buffer);
+
+			if(write(wfd,&message_size,sizeof(int))<0)
+				err("Problem in writing");
+
+			while(count < message_size){
+				
+				strncpy(tempstr,strPointer,size);
+				// printf("%s\n",tempstr );
+				if(write(wfd,tempstr,size)<0)
+					err("Problem in writing");
+				count+=size;
+				strPointer+=size;
+			}
+		}
+		free(buffer);
 	}
+
+	free(stat);
 
 	/*--------------------------- Clean the memory -------------------------------------*/ 
 
-	// for (int i = 0; i < k-1; ++i){
-	// 	free(&arrayOfStat[i]);
-	// }
 	free(arrayOfStat);
 
 	DeleteHashTable(diseaseHashtable);
