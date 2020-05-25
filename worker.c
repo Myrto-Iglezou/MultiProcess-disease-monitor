@@ -13,6 +13,31 @@
 #define FALSE 0
 #define err(mess){fprintf(stderr,"ERROR: %s\n",mess);exit(1);}
 
+static volatile sig_atomic_t SIGUR1Flag = FALSE;
+
+static volatile sig_atomic_t SIGINTFlag = FALSE;
+
+static volatile sig_atomic_t SIGQUITFlag = FALSE;
+
+static volatile sig_atomic_t SIGKILLFlag = FALSE;
+
+
+void SIGUR1Handler(int sig_num){
+	SIGUR1Flag = TRUE;
+}
+
+void SIGINTHandler(int sig_num){
+	SIGINTFlag = TRUE;
+}
+
+void SIGQUITHandler(int sig_num){
+	SIGQUITFlag = TRUE;
+}
+
+void SIGKILLHandler(int sig_num){
+	SIGKILLFlag = TRUE;
+}
+
 int main(int argc, char const *argv[]){
 
 	int rfd,wfd,bufferSize;
@@ -50,6 +75,27 @@ int main(int argc, char const *argv[]){
 	arrayOfStat = malloc(sizeof(statistics));
 	stat = malloc(sizeof(statistics));
 
+	/*--------------------------- Handle Signals -------------------------------------*/ 
+
+	struct sigaction SIGUSR1act,SIGINTact,SIGQUITact,SIGKILLact;
+	SIGKILLact.sa_handler = SIGKILLHandler;
+	SIGINTact.sa_handler = SIGINTHandler;
+	SIGQUITact.sa_handler = SIGQUITHandler;
+	SIGUSR1act.sa_handler = SIGUR1Handler;
+
+	if(sigaction(SIGUSR1,&SIGUSR1act,NULL) == -1)
+		err("sigaction error");
+	
+	if(sigaction(SIGKILL,&SIGKILLact,NULL) == -1)
+		err("sigaction error");
+	
+	if(sigaction(SIGINT,&SIGINTact,NULL) == -1)
+		err("sigaction error");
+	
+	if(sigaction(SIGQUIT,&SIGQUITact,NULL) == -1)
+		err("sigaction error");
+	
+
 	/*---------------------------- Read from the input -------------------------------*/
 
 	for(int i=0; i<argc;i++){
@@ -62,10 +108,12 @@ int main(int argc, char const *argv[]){
 			bufferSize = atoi(argv[i+1]);
 	}
 
+
 	if(read(rfd,&maxFiles,sizeof(int))<0)
 		err("Problem in reading bytes");
 
-		/*----------------------- Create the two hashtables -----------------------*/
+
+	/*----------------------- Create the two hashtables -----------------------*/
 
 	if(createHashTable(&diseaseHashtable,numOfentries)==FALSE){
 		printf("error\n");
@@ -208,6 +256,7 @@ int main(int argc, char const *argv[]){
 
 	/*--------------------------- Send Statistics -------------------------------------*/ 
 
+	printf("-- Send statistics id: %d \n",getpid());
 	message_size = k;
 	int size;
 	memset(tempstr,0,sizeof(tempstr));
@@ -312,16 +361,36 @@ int main(int argc, char const *argv[]){
 
 	free(stat);
 
-	/*--------------------------- Clean the memory -------------------------------------*/ 
+	
 
-	free(arrayOfStat);
+	while(1){
 
-	DeleteHashTable(diseaseHashtable);
-	DeleteHashTable(countryHashtable);
+		if(SIGUR1Flag){
 
-	// printTree(root,PrintPatient);
-	free(guard);
-	deleteTree(root,deletePatient);
-	free(date1);free(date2);
-	return 0;
+		}
+
+		if(SIGINTFlag){
+
+		}
+
+		if(SIGQUITFlag){
+			
+		}
+
+		if(SIGKILLFlag){
+			free(arrayOfStat);
+
+			DeleteHashTable(diseaseHashtable);
+			DeleteHashTable(countryHashtable);
+
+			// printTree(root,PrintPatient);
+			free(guard);
+			deleteTree(root,deletePatient);
+			free(date1);free(date2);
+			return 0;
+
+		}
+
+	}
+	
 }

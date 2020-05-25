@@ -16,6 +16,7 @@ typedef struct workerInfo{
 	char* readFifo;
 	int writeFd;
 	int readFd; 
+	pid_t pid;
 }workerInfo;
 
 int main(int argc, char const *argv[]){
@@ -79,20 +80,26 @@ int main(int argc, char const *argv[]){
 
 		if((workerArray[i]->readFd = open(workerArray[i]->readFifo, O_RDWR )) < 0)
 			err("Could not open fifo");
+	}
+
+	for(int i=0; i<numWorkers ;i++){
 
 		pid = fork();
 
         if(pid == -1){
            	err("fork failed" );
         }
-
-        if(pid == 0){
+        else if(pid == 0){
         	sprintf(fifoBuffer,"%d",bufferSize);
            	sprintf(pidfdr,"%d",workerArray[i]->writeFd);
            	sprintf(pidfdw,"%d",workerArray[i]->readFd );
 
            	execlp("./worker","worker","-wfd",pidfdw,"-rfd",pidfdr,"-b",fifoBuffer,NULL);
-        }      
+        }
+        else{
+        	workerArray[i]->pid = pid;
+        }  
+
 	}
 	
 	/*----------------------- Distribute the subdirectories -----------------------------*/
@@ -172,8 +179,10 @@ int main(int argc, char const *argv[]){
 		w++;     
 	}
 
+	/*--------------------------- Receive Statistics -------------------------------------*/ 
+
 	statistics* stat = malloc(sizeof(statistics));
-	statistics *arrayOfStat;
+	statistics *arrayOfStat[numWorkers];
 	char * buffer;
 	int numOfloops = 0;
 	
@@ -183,7 +192,7 @@ int main(int argc, char const *argv[]){
 		if(read(workerArray[i]->readFd,&numOfloops,sizeof(int))<0)		// numOfloops --> how many statistics are
 			err("Problem in reading bytes");
 
-		arrayOfStat = malloc(numOfloops*sizeof(statistics));
+		arrayOfStat[i] = malloc(numOfloops*sizeof(statistics));
 
 		for (int j = 0; j < numOfloops; j++){
 
@@ -203,9 +212,8 @@ int main(int argc, char const *argv[]){
 				count += bufferSize;
 				// printf("--- %d ---- %d\n",num,count );
 			}
-			strcpy(arrayOfStat[j].date,buffer);
+			strcpy(arrayOfStat[i][j].date,buffer);
 
-			// printStat(&arrayOfStat[i]);
 			free(buffer);
 
 			count=0;
@@ -222,11 +230,9 @@ int main(int argc, char const *argv[]){
 					err("Problem in reading!");
 				strncat(buffer,readBuffer,num);
 				count += bufferSize;
-				// printf("--- %d ---- %d\n",num,count );
 			}
-			strcpy(arrayOfStat[j].country,buffer);
-			
-			// printStat(&arrayOfStat[i]);
+			strcpy(arrayOfStat[i][j].country,buffer);
+
 			free(buffer);
 
 			count=0;
@@ -243,11 +249,9 @@ int main(int argc, char const *argv[]){
 					err("Problem in reading!");
 				strncat(buffer,readBuffer,num);
 				count += bufferSize;
-				// printf("--- %d ---- %d\n",num,count );
 			}
-			strcpy(arrayOfStat[j].disease,buffer);
+			strcpy(arrayOfStat[i][j].disease,buffer);
 			
-			// printStat(&arrayOfStat[i]);
 			free(buffer);
 
 			for (int k = 0; k < 4; k++){
@@ -259,35 +263,23 @@ int main(int argc, char const *argv[]){
 				if(read(workerArray[i]->readFd,&message_size,sizeof(int))<0)
 					err("Problem in writing");
 
-				// printf("%d\n",message_size );
-
 				while(count < message_size){
 
 					if((num = read(workerArray[i]->readFd,readBuffer,bufferSize))<0)
 						err("Problem in reading!");
 					strncat(buffer,readBuffer,num);
 					count += bufferSize;
-					// printf("--- %d ---- %d\n",num,count );
 				}
 				
-				arrayOfStat[j].ranges[k] = atoi(buffer);
+				arrayOfStat[i][j].ranges[k] = atoi(buffer);
 							
 				free(buffer);			
 			}
-			printStat(&arrayOfStat[j]);
+			// printStat(&arrayOfStat[i][j]);
 
 		}
-		free(arrayOfStat);
 	}
 
-	for(int i=0; i<numWorkers ;i++){
-		close(workerArray[i]->writeFd);
-		close(workerArray[i]->readFd);
-		unlink(workerArray[i]->writeFifo);
-		unlink(workerArray[i]->readFifo);
-	}
-	free(stat);
-	
 	/*----------------------------------------------------------------------------------*/
 
 	char buff[32] = "-";
@@ -336,11 +328,25 @@ int main(int argc, char const *argv[]){
 	// 		printf("Wrong input\n");
 	// }
 	while(wait(NULL)>0);
+
+	/*--------------------------- Clean the memory -------------------------------------*/ 
+
+
+
+	for(int i=0; i<numWorkers ;i++){
+		free(arrayOfStat[i]);
+		close(workerArray[i]->writeFd);
+		close(workerArray[i]->readFd);
+		unlink(workerArray[i]->writeFifo);
+		unlink(workerArray[i]->readFifo);
+	}
+
 	closedir(dir);
 	for(int i=0; i<numWorkers ;i++){
 		free(workerArray[i]->writeFifo);
 		free(workerArray[i]->readFifo);
 		free(workerArray[i]); 
 	}
+	free(stat);
 	return 0;
 }
