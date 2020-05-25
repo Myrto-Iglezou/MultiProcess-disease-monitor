@@ -60,8 +60,8 @@ int main(int argc, char const *argv[]){
 	char readBuffer[256];
 	int message_size;
 	int countBytes=0;
-	int numOfFiles=0;
-	int maxFiles=0;
+	int numOfFolders=0;
+	int maxFolders=0;
 	char* token;
 	char tempstr[256];
 	HashTable* diseaseHashtable = NULL;
@@ -74,26 +74,27 @@ int main(int argc, char const *argv[]){
 	statistics * arrayOfStat;
 	arrayOfStat = malloc(sizeof(statistics));
 	stat = malloc(sizeof(statistics));
+	int numOfFiles;
 
 	/*--------------------------- Handle Signals -------------------------------------*/ 
 
-	struct sigaction SIGUSR1act,SIGINTact,SIGQUITact,SIGKILLact;
-	SIGKILLact.sa_handler = SIGKILLHandler;
-	SIGINTact.sa_handler = SIGINTHandler;
-	SIGQUITact.sa_handler = SIGQUITHandler;
-	SIGUSR1act.sa_handler = SIGUR1Handler;
+	// struct sigaction SIGUSR1act,SIGINTact,SIGQUITact,SIGKILLact;
+	// SIGKILLact.sa_handler = SIGKILLHandler;
+	// SIGINTact.sa_handler = SIGINTHandler;
+	// SIGQUITact.sa_handler = SIGQUITHandler;
+	// SIGUSR1act.sa_handler = SIGUR1Handler;
 
-	if(sigaction(SIGUSR1,&SIGUSR1act,NULL) == -1)
-		err("sigaction error");
+	// if(sigaction(SIGUSR1,&SIGUSR1act,NULL) == -1)
+	// 	err("sigaction error");
 	
-	if(sigaction(SIGKILL,&SIGKILLact,NULL) == -1)
-		err("sigaction error");
+	// if(sigaction(SIGKILL,&SIGKILLact,NULL) == -1)
+	// 	err("sigaction error");
 	
-	if(sigaction(SIGINT,&SIGINTact,NULL) == -1)
-		err("sigaction error");
+	// if(sigaction(SIGINT,&SIGINTact,NULL) == -1)
+	// 	err("sigaction error");
 	
-	if(sigaction(SIGQUIT,&SIGQUITact,NULL) == -1)
-		err("sigaction error");
+	// if(sigaction(SIGQUIT,&SIGQUITact,NULL) == -1)
+	// 	err("sigaction error");
 	
 
 	/*---------------------------- Read from the input -------------------------------*/
@@ -108,10 +109,14 @@ int main(int argc, char const *argv[]){
 			bufferSize = atoi(argv[i+1]);
 	}
 
-
-	if(read(rfd,&maxFiles,sizeof(int))<0)
+	if(read(rfd,&maxFolders,sizeof(int))<0)
 		err("Problem in reading bytes");
 
+	char* subdirectories[maxFolders]; 
+
+	char** filesPerDir[maxFolders];
+
+	int numOfFilesPerDir[maxFolders];
 
 	/*----------------------- Create the two hashtables -----------------------*/
 
@@ -122,7 +127,7 @@ int main(int argc, char const *argv[]){
 		free(guard);
 		return 0;
 	}
-	if(createHashTable(&countryHashtable, maxFiles)==FALSE){
+	if(createHashTable(&countryHashtable, maxFolders)==FALSE){
 		printf("error\n");
 		//printf("\033[1;31mERROR: \033[0m: there's no space for a record in the country hashtable\n");
 		DeleteHashTable(diseaseHashtable);
@@ -131,7 +136,10 @@ int main(int argc, char const *argv[]){
 		return 0;
 	}
 
-	while(numOfFiles<maxFiles){
+
+	/*----------------------- Read the subdirectories ---------------------------*/
+
+	while(numOfFolders<maxFolders){
 
 		if(read(rfd,&message_size,sizeof(int))<0)
 			err("Problem in reading bytes");
@@ -148,16 +156,29 @@ int main(int argc, char const *argv[]){
 
 		if((dir = opendir(buffer)) == NULL)	//open directory
 			err("Can not open directory");
+
+		subdirectories[numOfFolders] = malloc((strlen(buffer)+1)*sizeof(char));
+		strcpy(subdirectories[numOfFolders],buffer);
+
 		n=0;
-		count=0;
+		numOfFiles=0;
+
 		while((dir_info = readdir(dir)) != NULL){
-			count++;
+			numOfFiles++;
 		}
-		char *namelist[count];
+
+		numOfFilesPerDir[numOfFolders] = numOfFiles;
+
+		filesPerDir[numOfFolders] = malloc(numOfFiles*sizeof(char*));
+
+		char *namelist[numOfFiles];
 		rewinddir(dir);
 		while((dir_info = readdir(dir)) != NULL){
 			strcpy(path,buffer); 
 			if(!strcmp(dir_info->d_name,".") || !strcmp(dir_info->d_name,".."))	continue;
+			
+			filesPerDir[numOfFolders][n] = malloc((strlen(DATE)+1)*sizeof(char)); 
+			strcpy(filesPerDir[numOfFolders][n],dir_info->d_name);
 			namelist[n] = malloc((strlen(DATE)+1)*sizeof(char)); 
 			strcpy(namelist[n],dir_info->d_name);
 			n++;
@@ -248,15 +269,14 @@ int main(int argc, char const *argv[]){
 		}
 		for (int i = 0; i < n; i++){
 			free(namelist[i]);
-		}		
+		}
 		free(buffer);
 		closedir(dir);
-		numOfFiles++;
+		numOfFolders++;
 	}
 
 	/*--------------------------- Send Statistics -------------------------------------*/ 
 
-	printf("-- Send statistics id: %d \n",getpid());
 	message_size = k;
 	int size;
 	memset(tempstr,0,sizeof(tempstr));
@@ -266,106 +286,136 @@ int main(int argc, char const *argv[]){
 
 	for (int i = 0; i < k; i++){
 		
-		count=0;
-		strPointer = arrayOfStat[i].date;
-		size = bufferSize;
-
-		message_size = strlen(arrayOfStat[i].date);
-
-		if(write(wfd,&message_size,sizeof(int))<0)
-			err("Problem in writing");
-
-		while(count < message_size){
-			
-			if(((strlen(arrayOfStat[i].date)+1)-count)<size){
-				size = (strlen(arrayOfStat[i].date)+1)-count;					
-			}
-			strncpy(tempstr,strPointer,size);
-			// printf("%s\n",tempstr );
-			if(write(wfd,tempstr,size)<0)
-				err("Problem in writing");
-			count+=size;
-			strPointer+=size;
-		}
-
-		count=0;
-		strPointer = arrayOfStat[i].country;
-		size = bufferSize;
-
-		message_size = strlen(arrayOfStat[i].country);
-
-		if(write(wfd,&message_size,sizeof(int))<0)
-			err("Problem in writing");
-
-		while(count < message_size){
-			
-			if(((strlen(arrayOfStat[i].country)+1)-count)<size){
-				size = (strlen(arrayOfStat[i].country)+1)-count;					
-			}
-			strncpy(tempstr,strPointer,size);
-			// printf("%s\n",tempstr );
-			if(write(wfd,tempstr,size)<0)
-				err("Problem in writing");
-			count+=size;
-			strPointer+=size;
-		}
-
-		count=0;
-		strPointer = arrayOfStat[i].disease;
-		size = bufferSize;
-
-		message_size = strlen(arrayOfStat[i].disease);
-
-		if(write(wfd,&message_size,sizeof(int))<0)
-			err("Problem in writing");
-
-		while(count < message_size){
-			
-			if(((strlen(arrayOfStat[i].disease)+1)-count)<size){
-				size = (strlen(arrayOfStat[i].disease)+1)-count;					
-			}
-			strncpy(tempstr,strPointer,size);
-			// printf("%s\n",tempstr );
-			if(write(wfd,tempstr,size)<0)
-				err("Problem in writing");
-			count+=size;
-			strPointer+=size;
-		}
-
+		sendStat(arrayOfStat[i].date,bufferSize,wfd);
+		sendStat(arrayOfStat[i].country,bufferSize,wfd);
+		sendStat(arrayOfStat[i].disease,bufferSize,wfd);
+		
 		buffer = malloc(sizeof(int));
 
 		for (int k = 0; k < 4; k++){
-
-			count=0;
-			sprintf(buffer,"%d",arrayOfStat[i].ranges[k]);
-			strPointer = buffer;
-			size = bufferSize;
-
-			message_size = strlen(buffer);
-
-			if(write(wfd,&message_size,sizeof(int))<0)
-				err("Problem in writing");
-
-			while(count < message_size){
-				
-				strncpy(tempstr,strPointer,size);
-				// printf("%s\n",tempstr );
-				if(write(wfd,tempstr,size)<0)
-					err("Problem in writing");
-				count+=size;
-				strPointer+=size;
-			}
+			
+			sprintf(buffer,"%d",arrayOfStat[i].ranges[k]);	
+			sendStat(buffer,bufferSize,wfd);	
 		}
+
 		free(buffer);
 	}
 
 	free(stat);
 
-	
-
 	while(1){
 
 		if(SIGUR1Flag){
+
+			for (int i = 0; i < numOfFolders; i++){
+				if((dir = opendir(subdirectories[i])) == NULL)	//open directory
+					err("Can not open directory");
+
+				n=0;
+				count=0;
+				int flag = FALSE; 
+
+				while((dir_info = readdir(dir)) != NULL){
+					count++;
+				}
+				int newFiles = count - numOfFilesPerDir[i];
+				char *newnamelist[newFiles];
+				rewinddir(dir);
+				while((dir_info = readdir(dir)) != NULL){
+					strcpy(path,subdirectories[i]); 
+					if(!strcmp(dir_info->d_name,".") || !strcmp(dir_info->d_name,".."))	continue;
+					for (int k = 0; k < numOfFilesPerDir[i]; k++){
+						if(!strcmp(dir_info->d_name,filesPerDir[i][k]))
+							flag = TRUE;	
+					}
+
+					namelist[n] = malloc((strlen(DATE)+1)*sizeof(char)); 
+					strcpy(namelist[n],dir_info->d_name);
+					n++;
+				}
+				
+				qsort(&namelist[0],n-1,sizeof(char*),CompareDates);	
+
+
+				for(int i=0 ; i<n-1 ; i++){
+
+				if(createHashTable(&tableForStatistics,numOfentries)==FALSE){
+					err("error in creating hashtable\n");
+					DeleteHashTable(tableForStatistics);
+					free(guard);
+				}
+
+				strcpy(path,buffer); 
+				strcat(path,"/");
+
+				strcpy(tempstr,path);
+				token = strtok(tempstr,"/");
+				while(token !=NULL){
+					strcpy(country,token);
+					token = strtok(NULL,"/");
+				}
+				
+				strcat(path,namelist[i]);
+				
+				if((fp = fopen(path,"r"))== NULL)	//open file
+					err("Can not open file");
+
+				while(!feof(fp)){
+					fscanf(fp,"%s %s %s %s %s %s \n",recordID,state,patientFirstName,patientLastName,disease,age);
+					if(!strcmp(state,"ENTER")){
+						strcpy(date1,namelist[i]);
+						strcpy(date2,"-");
+					}else if(!strcmp(state,"EXIT")){
+						strcpy(date2,namelist[i]);
+						strcpy(date1,"-");
+					}
+					
+					pat =  createPatient(recordID,patientFirstName,patientLastName,disease,country,date1,date2,atoi(age));
+					tempNode = FindData(root,pat,ComparePatientsID);
+					if(tempNode==guard && !strcmp(state,"ENTER")){
+						insertion(&root,pat,ComparePatientsID);
+						insertToHashTable(diseaseHashtable,pat,pat->disease,ComparePatientsDates);
+						insertToHashTable(countryHashtable,pat,pat->country,ComparePatientsDates);
+						insertToHashTable(tableForStatistics,pat,pat->disease,CompareAges);
+					}else if(tempNode!=guard && !strcmp(state,"EXIT")){
+						deletePatient(pat);
+						pat = tempNode->data;
+						strcpy(date1,pat->entryDate);
+						if(CompareDates(&date1,&date2)<=0)
+							strcpy(pat->exitDate,date2);
+					}else	
+						deletePatient(pat);
+				}
+				
+				fclose(fp);
+				strcpy(stat->date,namelist[i]);
+				strcpy(stat->country,country);
+				for(int i=0 ; i<4 ; i++){
+					stat->ranges[i] = 0;
+				}
+
+				count=0;
+
+				for(int i=0; i<tableForStatistics->NumOfEntries; i++){			// for every disease in the hashtable
+					curBucket = tableForStatistics->listOfBuckets[i];
+					while(curBucket!=NULL){
+						for(int j=0 ; j<curBucket->currentRecords ; j++){
+							for(int i=0 ; i<4 ; i++)
+								stat->ranges[i] = 0;
+							count=0;
+							record = curBucket->records[j];
+							strcpy(stat->disease,record->data);
+							findRanges(&stat,record);
+							arrayOfStat = (statistics*) realloc(arrayOfStat,(k+1)*sizeof(statistics));
+							memset(&arrayOfStat[k],0,sizeof(statistics));
+							arrayOfStat[k] = *stat;
+							k++;
+						}
+						curBucket = curBucket->next;
+					}
+				}		
+				DeleteHashTable(tableForStatistics);
+			}
 
 		}
 
@@ -374,7 +424,7 @@ int main(int argc, char const *argv[]){
 		}
 
 		if(SIGQUITFlag){
-			
+
 		}
 
 		if(SIGKILLFlag){
@@ -387,10 +437,40 @@ int main(int argc, char const *argv[]){
 			free(guard);
 			deleteTree(root,deletePatient);
 			free(date1);free(date2);
+			for (int i = 0; i < maxFolders; i++){
+				free(subdirectories[i]);
+			}
+
+			for (int i = 0; i < maxFolders; ++i){
+				for (int j = 0; j < n; j++){
+					free(filesPerDir[i][j]);
+				}
+				free(filesPerDir[i]);
+			}
 			return 0;
 
 		}
 
 	}
-	
+
+	// free(arrayOfStat);
+
+	// DeleteHashTable(diseaseHashtable);
+	// DeleteHashTable(countryHashtable);
+
+	// // printTree(root,PrintPatient);
+	// free(guard);
+	// deleteTree(root,deletePatient);
+	// free(date1);free(date2);
+	// for (int i = 0; i < maxFolders; i++){
+	// 	free(subdirectories[i]);
+	// }
+
+	// for (int i = 0; i < maxFolders; ++i){
+	// 	for (int j = 0; j < n; j++){
+	// 		free(filesPerDir[i][j]);
+	// 	}
+	// 	free(filesPerDir[i]);
+	// }
+	// return 0;
 }
