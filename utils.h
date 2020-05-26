@@ -22,3 +22,7 @@ void findRanges(statistics** stat,BucketRecord* record);
 void searchTree(Treenode* root,statistics** stat);
 
 void printStat(statistics * stat);
+
+void sendStat(char* data,int bufferSize,int wfd);
+
+void savestat(int readFd,int bufferSize,char* data,int sizeOfdata);

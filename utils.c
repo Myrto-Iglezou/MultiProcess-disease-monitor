@@ -1,9 +1,59 @@
 #include "utils.h"
+#define err(mess){fprintf(stderr,"ERROR: %s\n",mess);exit(1);}
 
 void findRanges(statistics** stat,BucketRecord* record){
 	searchTree(record->root,stat);
 }
 
+void sendStat(char* data,int bufferSize,int wfd){
+	int count=0;
+	char tempstr[256];
+	char* strPointer = data;
+	int size = bufferSize;
+
+	int message_size = strlen(data);
+
+	if(write(wfd,&message_size,sizeof(int))<0)
+		printf("Problem in writing");
+
+	while(count < message_size){
+		
+		if(((strlen(data)+1)-count)<size){
+			size = (strlen(data)+1)-count;					
+		}
+		strncpy(tempstr,strPointer,size);
+		// printf("%s\n",tempstr );
+		if(write(wfd,tempstr,size)<0)
+			printf("err\n");
+			// err("Problem in writing");
+		count+=size;
+		strPointer+=size;
+	}
+}
+
+void savestat(int readFd,int bufferSize,char* data,int sizeOfdata){
+	int count=0;
+	int message_size;
+	int num;
+	char readBuffer[256];
+
+	char* buffer = malloc(sizeOfdata);
+	strcpy(buffer,"");
+
+	if(read(readFd,&message_size,sizeof(int))<0)
+		err("Problem in writing");
+
+	while(count < message_size){
+
+		if((num = read(readFd,readBuffer,bufferSize))<0)
+			err("Problem in reading!");
+		strncat(buffer,readBuffer,num);
+		count += bufferSize;
+	}
+	strcpy(data,buffer);
+
+	free(buffer);
+}
 
 void searchTree(Treenode* root,statistics** stat){
 	if(root==guard)
