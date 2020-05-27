@@ -37,6 +37,8 @@ static volatile sig_atomic_t SIGINTFlag = FALSE;
 
 static volatile sig_atomic_t SIGQUITFlag = FALSE;
 
+static volatile sig_atomic_t SIGCHLDFlag = FALSE;
+
 void get_pid(int sig, siginfo_t *info, void* context){
 	signalPid = info->si_pid;
 	SIGUR1Flag = TRUE;
@@ -44,6 +46,10 @@ void get_pid(int sig, siginfo_t *info, void* context){
 
 void SIGINTHandler(int sig_num){
 	SIGINTFlag = TRUE;
+}
+
+void SIGCHLDHandler(int sig_num){
+	SIGCHLDFlag = TRUE;
 }
 
 void SIGQUITHandler(int sig_num){
@@ -56,6 +62,7 @@ int main(int argc, char const *argv[]){
 	char input_dir[30];
 	pid_t pid;
 	DIR * dir;
+	FILE * fp;
 	struct dirent * dir_info;
 	int numOfdir=0;
 	char pidfdr[10];
@@ -63,15 +70,18 @@ int main(int argc, char const *argv[]){
 	char fifoBuffer[10];
 	int num;
 	char readBuffer[256];
+	int total=0, success=0, fail=0;
 
 	/*--------------------------- Handle Signals -------------------------------------*/ 
 
-	static struct sigaction SIGUSR1act,SIGINTact,SIGQUITact;
+	static struct sigaction SIGUSR1act,SIGINTact,SIGQUITact,SIGCHLDact;
 
 	SIGINTact.sa_handler = SIGINTHandler;
 	sigfillset(&(SIGINTact.sa_mask));
 	SIGQUITact.sa_handler = SIGQUITHandler;
 	sigfillset(&(SIGQUITact.sa_mask));
+	SIGCHLDact.sa_handler = SIGCHLDHandler;
+	sigfillset(&(SIGCHLDact.sa_mask));
 
 	SIGUSR1act.sa_flags = SA_SIGINFO;
 	SIGUSR1act.sa_sigaction = get_pid;
@@ -85,6 +95,9 @@ int main(int argc, char const *argv[]){
 		err("sigaction error");
 	
 	if(sigaction(SIGQUIT,&SIGQUITact,NULL) == -1)
+		err("sigaction error");
+
+	if(sigaction(SIGCHLD,&SIGCHLDact,NULL) == -1)
 		err("sigaction error");
 	
 
@@ -335,7 +348,7 @@ int main(int argc, char const *argv[]){
 			numOfstat[workerNum]+=numOfloops;
 			arrayOfStat[workerNum] = realloc(arrayOfStat[workerNum], numOfstat[workerNum]*sizeof(statistics));
 
-			for (int j = numOfstat[workerNum]-numOfloops-1; j < numOfstat[workerNum]; j++){
+			for (int j = numOfstat[workerNum]-numOfloops-1; j < numOfstat[workerNum]-1; j++){
 
 				savestat(workerArray[workerNum]->readFd,bufferSize,arrayOfStat[workerNum][j].date,sizeof(stat->date));
 				savestat(workerArray[workerNum]->readFd,bufferSize,arrayOfStat[workerNum][j].country,sizeof(stat->country));
@@ -348,7 +361,7 @@ int main(int argc, char const *argv[]){
 					strcpy(buffer,"");
 
 					if(read(workerArray[workerNum]->readFd,&message_size,sizeof(int))<0)
-						err("Problem in writing");
+						err("Problem in reading");
 
 					while(count < message_size){
 
@@ -364,6 +377,56 @@ int main(int argc, char const *argv[]){
 				}
 				printStat(&arrayOfStat[workerNum][j]);
 			}
+			SIGUR1Flag = FALSE;
+		}
+		if(SIGCHLDFlag){
+			
+		}
+		if(SIGINTFlag || SIGQUITFlag){
+
+			char fileName[64];
+			char temp[64];
+			char request[64];
+
+			for (int i = 0; i < numWorkers; i++){
+				kill(workerArray[i]->pid,SIGKILL);
+			}	
+			while(wait(NULL)>0);
+
+			strcpy(fileName,"log_file.");
+			sprintf(temp,"%d",getpid());
+			strcat(fileName,temp);
+
+			fp = fopen(fileName,"w+");
+
+			for (int i = 0; i < numWorkers; i++){
+				for (int j = 0; j < countriesCounter[i] ; j++){
+					fprintf(fp,"%s\n",workerArray[i]->countries[j]);
+				}
+			}
+			strcpy(request,"TOTAL ");
+			total = success+fail;
+			sprintf(temp,"%d",total);
+			strcat(request,temp);
+			fprintf(fp, "%s\n", request);				
+
+			strcpy(request,"SUCCESS ");
+			sprintf(temp,"%d",success);
+			strcat(request,temp);
+			fprintf(fp, "%s\n", request);				
+
+			strcpy(request,"FAIL ");
+			sprintf(temp,"%d",fail);
+			strcat(request,temp);
+			fprintf(fp, "%s\n", request);				
+
+			fclose(fp);
+			if(SIGQUITFlag){
+				SIGQUITFlag = FALSE;
+			}else if(SIGINTFlag){
+				SIGINTFlag = FALSE;
+			}
+			break;				
 		}
 
 		printf("\033[1;36mREQUEST:  \033[0m");

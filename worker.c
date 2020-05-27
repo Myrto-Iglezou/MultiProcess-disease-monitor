@@ -34,10 +34,6 @@ void SIGQUITHandler(int sig_num){
 	SIGQUITFlag = TRUE;
 }
 
-void SIGKILLHandler(int sig_num){
-	SIGKILLFlag = TRUE;
-}
-
 int main(int argc, char const *argv[]){
 
 	int rfd,wfd,bufferSize;
@@ -75,13 +71,12 @@ int main(int argc, char const *argv[]){
 	arrayOfStat = malloc(sizeof(statistics));
 	stat = malloc(sizeof(statistics));
 	int numOfFiles;
+	int total=0, success=0, fail=0;
 
 	/*--------------------------- Handle Signals -------------------------------------*/ 
 
 	static struct sigaction SIGUSR1act,SIGINTact,SIGQUITact,SIGKILLact;
 
-	SIGKILLact.sa_handler = SIGKILLHandler;
-	sigfillset(&(SIGKILLact.sa_mask));
 	SIGINTact.sa_handler = SIGINTHandler;
 	sigfillset(&(SIGINTact.sa_mask));
 	SIGQUITact.sa_handler = SIGQUITHandler;
@@ -92,9 +87,6 @@ int main(int argc, char const *argv[]){
 
 	if(sigaction(SIGUSR1,&SIGUSR1act,NULL) == -1)
 		err("sigaction error");
-	
-	// if(sigaction(SIGKILL,&SIGKILLact,NULL) == -1)
-	// 	err("sigaction error");
 	
 	if(sigaction(SIGINT,&SIGINTact,NULL) == -1)
 		err("sigaction error");
@@ -119,6 +111,8 @@ int main(int argc, char const *argv[]){
 		err("Problem in reading bytes");
 
 	char* subdirectories[maxFolders]; 
+
+	char* countries[maxFolders]; 
 
 	char** filesPerDir[maxFolders];
 
@@ -210,7 +204,8 @@ int main(int argc, char const *argv[]){
 				strcpy(country,token);
 				token = strtok(NULL,"/");
 			}
-			
+			countries[numOfFolders] = malloc((strlen(country)+1)*sizeof(char));
+			strcpy(countries[numOfFolders],country);
 			strcat(path,namelist[i]);
 			
 			if((fp = fopen(path,"r"))== NULL)	//open file
@@ -334,27 +329,29 @@ int main(int argc, char const *argv[]){
 				n=0;
 				
 				while((dir_info = readdir(dir)) != NULL){
+					flag = FALSE;
 					strcpy(path,subdirectories[i]); 
 					if(!strcmp(dir_info->d_name,".") || !strcmp(dir_info->d_name,".."))	continue;
 
 					for (int k = 0; k < numOfFilesPerDir[i]; k++){
+						// printf("%s - %s\n",dir_info->d_name, filesPerDir[i][k] );
 						if(!strcmp(dir_info->d_name,filesPerDir[i][k]))
-							flag = TRUE;	
+							flag = TRUE;
+						if(flag)
+							break;	
 					}
-					if(!flag){
+					if(flag == FALSE){
 						newnamelist[n] = malloc((strlen(DATE)+1)*sizeof(char)); 
 						strcpy(newnamelist[n],dir_info->d_name);
-						filesPerDir[i] = malloc( (numOfFilesPerDir[i]+1)*sizeof(char*));
-						numOfFilesPerDir[i]++;
+						filesPerDir[i] = realloc(filesPerDir[i], (numOfFilesPerDir[i]+1)*sizeof(char*));
 						filesPerDir[i][numOfFilesPerDir[i]] = malloc((strlen(DATE)+1)*sizeof(char)); 
 						strcpy(filesPerDir[i][numOfFilesPerDir[i]],dir_info->d_name);
+						numOfFilesPerDir[i]++;
 						n++;
 					}
 				}
 
-
 				qsort(&newnamelist[0],n-1,sizeof(char*),CompareDates);	
-
 
 				for(int j=0 ; j<newFiles ; j++){
 
@@ -364,7 +361,7 @@ int main(int argc, char const *argv[]){
 						free(guard);
 					}
 
-					strcpy(path,buffer); 
+					strcpy(path,subdirectories[i]); 
 					strcat(path,"/");
 
 					strcpy(tempstr,path);
@@ -427,7 +424,7 @@ int main(int argc, char const *argv[]){
 								strcpy(stat->disease,record->data);
 								findRanges(&stat,record);
 								arrayOfStat = (statistics*) realloc(arrayOfStat,(numOfstat+1)*sizeof(statistics));
-								tempstat = (statistics*) realloc(arrayOfStat,(totalFiles+1)*sizeof(statistics));
+								tempstat = (statistics*) realloc(tempstat,(totalFiles+1)*sizeof(statistics));
 								memset(&arrayOfStat[numOfstat],0,sizeof(statistics));
 								arrayOfStat[numOfstat] = *stat;
 								tempstat[totalFiles] = *stat;
@@ -438,10 +435,11 @@ int main(int argc, char const *argv[]){
 						}
 					}	
 					DeleteHashTable(tableForStatistics);
-					for (int i = 0; i < newFiles; i++){
+					
+				}
+				for (int i = 0; i < newFiles; i++){
 						free(newnamelist[i]);
 					}
-				}
 			}
 			message_size = totalFiles;
 
@@ -464,64 +462,71 @@ int main(int argc, char const *argv[]){
 
 				free(buffer);
 			}	
+			SIGUR1Flag = FALSE;
 		}
 
-		if(SIGINTFlag){
+		if(SIGINTFlag || SIGQUITFlag){
 
-		}
+			char fileName[64];
+			char temp[64];
+			char request[64];
 
-		if(SIGQUITFlag){
+			strcpy(fileName,"log_file.");
+			sprintf(temp,"%d",getpid());
+			strcat(fileName,temp);
 
-		}
+			fp = fopen(fileName,"w+");
 
-		if(SIGKILLFlag){
-			free(arrayOfStat);
-
-			free(stat);	
-
-			DeleteHashTable(diseaseHashtable);
-			DeleteHashTable(countryHashtable);
-
-			// printTree(root,PrintPatient);
-			free(guard);
-			free(stat);
-			deleteTree(root,deletePatient);
-			free(date1);free(date2);
 			for (int i = 0; i < maxFolders; i++){
-				free(subdirectories[i]);
+				fprintf(fp, "%s\n", countries[i]);				
 			}
+			strcpy(request,"TOTAL ");
+			total = success+fail;
+			sprintf(temp,"%d",total);
+			strcat(request,temp);
+			fprintf(fp, "%s\n", request);				
 
-			for (int i = 0; i < maxFolders; ++i){
-				for (int j = 0; j < n; j++){
-					free(filesPerDir[i][j]);
-				}
-				free(filesPerDir[i]);
+			strcpy(request,"SUCCESS ");
+			sprintf(temp,"%d",success);
+			strcat(request,temp);
+			fprintf(fp, "%s\n", request);				
+
+			strcpy(request,"FAIL ");
+			sprintf(temp,"%d",fail);
+			strcat(request,temp);
+			fprintf(fp, "%s\n", request);				
+
+			fclose(fp);
+			if(SIGQUITFlag){
+				SIGQUITFlag = FALSE;
+			}else if(SIGINTFlag){
+				SIGINTFlag = FALSE;
 			}
-			return 0;
-
 		}
-
 	}
 
-	// free(arrayOfStat);
+	free(arrayOfStat);
 
-	// DeleteHashTable(diseaseHashtable);
-	// DeleteHashTable(countryHashtable);
+	free(stat);	
 
-	// // printTree(root,PrintPatient);
-	// free(guard);
-	// free(stat);
-	// deleteTree(root,deletePatient);
-	// free(date1);free(date2);
-	// for (int i = 0; i < maxFolders; i++){
-	// 	free(subdirectories[i]);
-	// }
+	DeleteHashTable(diseaseHashtable);
+	DeleteHashTable(countryHashtable);
 
-	// for (int i = 0; i < maxFolders; ++i){
-	// 	for (int j = 0; j < n; j++){
-	// 		free(filesPerDir[i][j]);
-	// 	}
-	// 	free(filesPerDir[i]);
-	// }
-	// return 0;
+	// printTree(root,PrintPatient);
+	free(guard);
+	free(stat);
+	deleteTree(root,deletePatient);
+	free(date1);free(date2);
+	for (int i = 0; i < maxFolders; i++){
+		free(subdirectories[i]);
+		free(countries[i]);
+	}
+
+	for (int i = 0; i < maxFolders; ++i){
+		for (int j = 0; j < n; j++){
+			free(filesPerDir[i][j]);
+		}
+		free(filesPerDir[i]);
+	}
+	return 0;
 }
