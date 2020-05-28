@@ -11,6 +11,7 @@
 #include <poll.h>
 #include "utils.h"
 #define err(mess){fprintf(stderr,"ERROR: %s\n",mess);exit(1);}
+#define stdinFd 0;
 
 static volatile sig_atomic_t signalPid = -1;
 
@@ -102,7 +103,11 @@ int main(int argc, char const *argv[]){
 
 	/*------------------------------- Create Workers -----------------------------------*/
 
-	struct pollfd fdarray[numWorkers];
+	struct pollfd *fdarray;
+	int nfds=0;
+	nfds = numWorkers+1;
+
+	fdarray = calloc(nfds,sizeof(struct pollfd));
 
 	workerInfo* workerArray[numWorkers];
 	for(int i=0; i<numWorkers ;i++){
@@ -111,6 +116,8 @@ int main(int argc, char const *argv[]){
 
 	char rfifo[5];
 	char wfifo[5];
+
+	int workerWfd,workerRfd;
 
 	for(int i=0; i<numWorkers ;i++){
 		sprintf(rfifo,"%d",i);
@@ -129,12 +136,6 @@ int main(int argc, char const *argv[]){
 
 		if(mkfifo(workerArray[i]->readFifo,0666) == -1)
 			err("No fifo was created");
-
-		if((workerArray[i]->writeFd = open(workerArray[i]->writeFifo, O_RDWR | O_NONBLOCK)) < 0)
-			err("Could not open fifo");
-
-		if((workerArray[i]->readFd = open(workerArray[i]->readFifo, O_RDWR )) < 0)
-			err("Could not open fifo");
 	}
 
 	for(int i=0; i<numWorkers ;i++){
@@ -146,11 +147,7 @@ int main(int argc, char const *argv[]){
         }
         else if(pid == 0){
         	sprintf(fifoBuffer,"%d",bufferSize);
-           	sprintf(pidfdr,"%d",workerArray[i]->writeFd);
-           	sprintf(pidfdw,"%d",workerArray[i]->readFd);
-           	fdarray[i].fd  =  workerArray[i]->readFd;
-
-           	execlp("./worker","worker","-wfd",pidfdw,"-rfd",pidfdr,"-b",fifoBuffer,NULL);
+           	execlp("./worker","worker","-wfn",workerArray[i]->readFifo,"-rfn",workerArray[i]->writeFifo,"-b",fifoBuffer,NULL);
         }
         else{
         	workerArray[i]->pid = pid;
@@ -158,6 +155,26 @@ int main(int argc, char const *argv[]){
         }  
 
 	}
+
+	for(int i=0; i<numWorkers ;i++){
+		
+		while(1){
+			if((workerArray[i]->writeFd = open(workerArray[i]->writeFifo, O_WRONLY)) < 0)
+				printf("Could not open fifo..");
+
+			if((workerArray[i]->readFd = open(workerArray[i]->readFifo, O_RDONLY | O_NONBLOCK)) < 0)
+				printf("Could not open fifo++");
+
+			if(workerArray[i]->writeFd > 0 && workerArray[i]->readFd > 0)
+				break;
+		}
+
+	    fdarray[i].fd  =  workerArray[i]->readFd;
+       	fdarray[i].events = POLLIN;
+	}
+
+	fdarray[numWorkers].fd = stdinFd;
+	fdarray[numWorkers].events = POLLIN;
 	
 	/*----------------------- Distribute the subdirectories -----------------------------*/
 
@@ -258,47 +275,77 @@ int main(int argc, char const *argv[]){
 	int numOfstat[numWorkers];
 	int numOfloops = 0;
 	char* buffer;
-
-
+	int workerNum, tempFlag;
+	int boolArray[numWorkers];
 	for (int i = 0; i < numWorkers; i++){
+		 boolArray[i] = 0;
+	}
 
-		if(read(workerArray[i]->readFd,&numOfloops,sizeof(int))<0)		// numOfloops --> how many statistics are
-				err("Problem in reading bytes");
+	while(1){
+		int rc;
+		rc = poll(fdarray,numWorkers+1,-1);
 
+		if(rc == -1){
+			err("problem with poll");
+		}		
+		else if(rc > 0){
 
-		arrayOfStat[i] = malloc(numOfloops*sizeof(statistics));
-		numOfstat[i] = numOfloops;
-
-
-		for (int j = 0; j < numOfloops; j++){
-
-			savestat(workerArray[i]->readFd,bufferSize,arrayOfStat[i][j].date,sizeof(stat->date));
-			savestat(workerArray[i]->readFd,bufferSize,arrayOfStat[i][j].country,sizeof(stat->country));
-			savestat(workerArray[i]->readFd,bufferSize,arrayOfStat[i][j].disease,sizeof(stat->disease));
-
-			for (int k = 0; k < 4; k++){
-				count=0;
-
-				buffer = malloc(sizeof(int));
-				strcpy(buffer,"");
-
-				if(read(workerArray[i]->readFd,&message_size,sizeof(int))<0)
-					err("Problem in writing");
-
-				while(count < message_size){
-
-					if((num = read(workerArray[i]->readFd,readBuffer,bufferSize))<0)
-						err("Problem in reading!");
-					strncat(buffer,readBuffer,num);
-					count += bufferSize;
-				}
+			for (int i = 0; i < nfds-1; i++){
 				
-				arrayOfStat[i][j].ranges[k] = atoi(buffer);
+				if(fdarray[i].revents & POLLIN){
+
+					printf("-----------------\n");
+
+					workerNum = findWorkerFromfd(fdarray[i].fd, workerArray,numWorkers);
+
+					if(read(workerArray[workerNum]->readFd,&numOfloops,sizeof(int))<0)		// numOfloops --> how many statistics are
+							err("Problem in reading bytes");
+
+					boolArray[workerNum] = 1;
+					arrayOfStat[workerNum] = malloc(numOfloops*sizeof(statistics));
+					numOfstat[workerNum] = numOfloops;
+
+
+					for (int j = 0; j < numOfloops; j++){
+
+						savestat(workerArray[workerNum]->readFd,bufferSize,arrayOfStat[workerNum][j].date,sizeof(stat->date));
+						savestat(workerArray[workerNum]->readFd,bufferSize,arrayOfStat[workerNum][j].country,sizeof(stat->country));
+						savestat(workerArray[workerNum]->readFd,bufferSize,arrayOfStat[workerNum][j].disease,sizeof(stat->disease));
+
+						for (int k = 0; k < 4; k++){
+							count=0;
+
+							buffer = malloc(sizeof(int));
+							strcpy(buffer,"");
+
+							if(read(workerArray[workerNum]->readFd,&message_size,sizeof(int))<0)
+								err("Problem in writing");
+
+							while(count < message_size){
+
+								if((num = read(workerArray[i]->readFd,readBuffer,bufferSize))<0)
+									err("Problem in reading!");
+								strncat(buffer,readBuffer,num);
+								count += bufferSize;
+							}
 							
-				free(buffer);			
+							arrayOfStat[workerNum][j].ranges[k] = atoi(buffer);
+										
+							free(buffer);			
+						}
+						printStat(&arrayOfStat[workerNum][j]);
+					}
+
+				}
 			}
-			// printStat(&arrayOfStat[i][j]);
 		}
+		tempFlag = TRUE;
+		for (int i = 0; i < numWorkers; i++){
+			 if(boolArray[i] == 0)
+			 	tempFlag = FALSE;
+		}
+		if(tempFlag)
+			break;
 	}
 
 	/*----------------------------------------------------------------------------------*/
@@ -520,13 +567,41 @@ int main(int argc, char const *argv[]){
 		
 		}if(!strcmp(buff,"/diseaseFrequency")){
 			scanf("%s %s %s",VirusName,date1,date2);
+			strncpy(diseaseCountry,"-");
 			ch = getchar();
 			if(ch != '\n')
 				scanf("%s",diseaseCountry);
-			// if(!CheckDate(date1,date2)){
-			// 	printf("\033[1;31mERROR: \033[0mSomething went wrong with your date input\n");
-			// }else
-			// 	diseaseFrequency(diseaseCountry,VirusName,diseaseHashtable,countryHashtable,date1,date2);		
+			if(compareDates(date1,date2)>0){
+				err("Something went wrong with your date input");
+			}else{
+				if(!strcmp(diseaseCountry,"-")){
+					workerNum = findWorkerFromCountry(diseaseCountry, workerArray,numWorkers,countriesCounter);
+					strPointer = &path[0];
+					size = bufferSize;
+					count = 0
+					message_size = strlen(path);
+					if(write(workerArray[w]->writeFd,&message_size,sizeof(int))<0)
+						err("Problem in writing");
+
+					while(count < (strlen(path))){
+
+						strPointer = &path[0];
+						strPointer+=count;
+						
+						if(((strlen(path)+1)-count)<size){
+							size = (strlen(path)+1)-count;					
+						}
+						strncpy(tempStr,strPointer,size);
+						if(write(workerArray[w]->writeFd,tempStr,size)<0)
+							err("Problem in writing");
+						count+=size;
+					}
+				}else{
+					for (int i = 0; i < numWorkers; ++i){
+						
+					}
+				}		
+			}
 		}else if(!strcmp(buff,"/topk-AgeRanges")){
 			scanf("%s %s %s %s %s",k,diseaseCountry,VirusName,date1,date2);
 		
@@ -579,5 +654,6 @@ int main(int argc, char const *argv[]){
 		free(workerArray[i]); 
 	}
 	free(stat);
+	free(fdarray);
 	return 0;
 }

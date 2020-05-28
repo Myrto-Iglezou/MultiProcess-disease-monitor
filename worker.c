@@ -99,13 +99,19 @@ int main(int argc, char const *argv[]){
 
 	for(int i=0; i<argc;i++){
 		
-		if(!strcmp(argv[i],"-rfd"))
-			rfd = atoi(argv[i+1]);
-		if(!strcmp(argv[i],"-wfd"))
-			wfd = atoi(argv[i+1]);
+		if(!strcmp(argv[i],"-rfn"))
+			strcpy(readFifo,argv[i+1]);
+		if(!strcmp(argv[i],"-wfn"))
+			strcpy(writeFifo,argv[i+1]);
 		if(!strcmp(argv[i],"-b"))
 			bufferSize = atoi(argv[i+1]);
 	}
+
+	if((rfd = open(readFifo, O_RDONLY )) < 0)
+		err("Could not open fifo!!");
+
+	if((wfd = open(writeFifo, O_WRONLY )) < 0)
+		err("Could not open fifo--");
 
 	if(read(rfd,&maxFolders,sizeof(int))<0)
 		err("Problem in reading bytes");
@@ -299,6 +305,7 @@ int main(int argc, char const *argv[]){
 
 		free(buffer);
 	}
+	char disease[64], country[64], date1[11], date2[11],diseaseCountry[64];
 
 	while(1){
 
@@ -503,11 +510,54 @@ int main(int argc, char const *argv[]){
 				SIGINTFlag = FALSE;
 			}
 		}
+
+		if(read(rfd,&message_size,sizeof(int))<0)
+			err("Problem in reading bytes");
+
+		buffer = malloc((message_size+1)*sizeof(char));
+		strcpy(buffer,"");
+		countBytes=0;
+		while(countBytes<message_size){			
+			if((num = read(rfd,readBuffer,bufferSize))<0)
+				err("Problem in reading!");
+			strncat(buffer,readBuffer,num);
+			countBytes = strlen(buffer);
+		}
+		if(strcmp(buffer,"/diseaseFrequency")){
+			for (int i = 0; i < 4; i++){
+				if(read(rfd,&message_size,sizeof(int))<0)
+					err("Problem in reading bytes");
+
+				buffer = malloc((message_size+1)*sizeof(char));
+				strcpy(buffer,"");
+				countBytes=0;
+				while(countBytes<message_size){			
+					if((num = read(rfd,readBuffer,bufferSize))<0)
+						err("Problem in reading!");
+					strncat(buffer,readBuffer,num);
+					countBytes = strlen(buffer);
+				}
+				if(i==0)
+					strcpy(disease,buffer);
+				else if(i==1)
+					strcpy(date1,buffer);
+				else if(i==2)
+					strcpy(date2,buffer);
+				else if(i==3)
+					strcpy(country,buffer);
+			}
+			printf("%s %s %s %s \n",disease,date1,date2,country );
+		}
+
+		free(buffer);
 	}
 
 	free(arrayOfStat);
 
 	free(stat);	
+
+	close(rfd);
+	close(wfd);
 
 	DeleteHashTable(diseaseHashtable);
 	DeleteHashTable(countryHashtable);
