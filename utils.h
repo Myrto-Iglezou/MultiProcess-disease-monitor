@@ -17,6 +17,16 @@ typedef struct statistics{
 	int ranges[4];
 }statistics;
 
+typedef struct workerInfo{
+	char* writeFifo;
+	char* readFifo;
+	char** countries;
+	int writeFd;
+	int readFd; 
+	pid_t pid;
+	int num;
+}workerInfo;
+
 void findRanges(statistics** stat,BucketRecord* record);
 
 void searchTree(Treenode* root,statistics** stat);
@@ -26,3 +36,5 @@ void printStat(statistics * stat);
 void sendStat(char* data,int bufferSize,int wfd);
 
 void savestat(int readFd,int bufferSize,char* data,int sizeOfdata);
+
+int findNum(int id,workerInfo ** array,int numWorkers);

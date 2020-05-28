@@ -5,6 +5,22 @@ void findRanges(statistics** stat,BucketRecord* record){
 	searchTree(record->root,stat);
 }
 
+int findNum(int id,workerInfo ** array,int numWorkers){
+	for(int i=0; i<numWorkers ;i++){
+		if(array[i]->pid == id)
+			return i;
+	}
+}
+
+int findWorkerFromCountry(char* country, workerInfo ** array,int numWorkers,int *counter){
+	for(int i=0; i<numWorkers ;i++){
+		for (int j = 0; j < counter[i]; j++){
+			if(!strcmp(country,array[i]->countries[j]))
+				return i;
+		}
+	}
+}
+
 void sendStat(char* data,int bufferSize,int wfd){
 	int count=0;
 	char tempstr[256];
@@ -92,5 +108,5 @@ void printStat(statistics * stat){
 		}
 		printf("%d cases\n",stat->ranges[i]);
 	}
-
 }
+

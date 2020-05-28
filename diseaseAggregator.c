@@ -12,24 +12,9 @@
 #include "utils.h"
 #define err(mess){fprintf(stderr,"ERROR: %s\n",mess);exit(1);}
 
-typedef struct workerInfo{
-	char* writeFifo;
-	char* readFifo;
-	char** countries;
-	int writeFd;
-	int readFd; 
-	pid_t pid;
-	int num;
-}workerInfo;
-
-int findNum(int id,workerInfo ** array,int numWorkers){
-	for(int i=0; i<numWorkers ;i++){
-		if(array[i]->pid == id)
-			return i;
-	}
-}
-
 static volatile sig_atomic_t signalPid = -1;
+
+static volatile sig_atomic_t signalPid2 = -1;
 
 static volatile sig_atomic_t SIGUR1Flag = FALSE;
 
@@ -44,12 +29,13 @@ void get_pid(int sig, siginfo_t *info, void* context){
 	SIGUR1Flag = TRUE;
 }
 
-void SIGINTHandler(int sig_num){
-	SIGINTFlag = TRUE;
+void SIGCHLD_pid(int sig, siginfo_t *info, void* context){
+	signalPid2 = info->si_pid;
+	SIGCHLDFlag = TRUE;
 }
 
-void SIGCHLDHandler(int sig_num){
-	SIGCHLDFlag = TRUE;
+void SIGINTHandler(int sig_num){
+	SIGINTFlag = TRUE;
 }
 
 void SIGQUITHandler(int sig_num){
@@ -80,13 +66,12 @@ int main(int argc, char const *argv[]){
 	sigfillset(&(SIGINTact.sa_mask));
 	SIGQUITact.sa_handler = SIGQUITHandler;
 	sigfillset(&(SIGQUITact.sa_mask));
-	SIGCHLDact.sa_handler = SIGCHLDHandler;
-	sigfillset(&(SIGCHLDact.sa_mask));
+	
+	SIGCHLDact.sa_flags = SA_SIGINFO;
+	SIGCHLDact.sa_sigaction = SIGCHLD_pid;
 
 	SIGUSR1act.sa_flags = SA_SIGINFO;
 	SIGUSR1act.sa_sigaction = get_pid;
-
-	// sigfillset(&(SIGUSR1act.sa_mask));
 
 	if(sigaction(SIGUSR1,&SIGUSR1act,NULL) == -1)
 		err("sigaction error");
@@ -333,9 +318,9 @@ int main(int argc, char const *argv[]){
 
 	while(flag){
 
-		if(SIGUR1Flag){
+		strcpy(buff,"-");
 
-			strcpy(buff,"-");
+		if(SIGUR1Flag){
 
 			int workerNum,id;
 			id = signalPid;
@@ -380,7 +365,101 @@ int main(int argc, char const *argv[]){
 			SIGUR1Flag = FALSE;
 		}
 		if(SIGCHLDFlag){
+
+			int workerNum,id;
+			id = signalPid2;
+
+			workerNum  = findNum(id,workerArray,numWorkers);
 			
+			pid = fork();
+
+	        if(pid == -1){
+	           	err("fork failed" );
+	        }
+	        else if(pid == 0){
+	        	sprintf(fifoBuffer,"%d",bufferSize);
+	           	sprintf(pidfdr,"%d",workerArray[workerNum]->writeFd);
+	           	sprintf(pidfdw,"%d",workerArray[workerNum]->readFd);
+	           	execlp("./worker","worker","-wfd",pidfdw,"-rfd",pidfdr,"-b",fifoBuffer,NULL);
+	        }
+	        else{
+	        	workerArray[workerNum]->pid = pid;
+	        } 
+
+			if(write(workerArray[workerNum]->writeFd,&countriesCounter[workerNum],sizeof(int))<0)
+				err("Problem in writing");
+
+	        for (int i = 0; i < countriesCounter[workerNum]; i++){
+	       		
+	       		strcpy(path,cwd);
+				strcat(path,"/");
+				strcat(path,input_dir); 
+				strcat(path,"/");
+				strcat(path,workerArray[workerNum]->countries[i]);
+
+				strPointer = &path[0];
+				size = bufferSize;
+				message_size = strlen(path);
+				if(write(workerArray[workerNum]->writeFd,&message_size,sizeof(int))<0)
+					err("Problem in writing");
+				count = 0;
+				printf("--  %s\n",path );
+				while(count < strlen(path)){
+
+					strPointer = &path[0];
+					strPointer+=count;
+					
+					if(((strlen(path)+1)-count)<size){
+						size = (strlen(path)+1)-count;					
+					}
+					strncpy(tempStr,strPointer,size);
+					if(write(workerArray[workerNum]->writeFd,tempStr,size)<0)
+						err("Problem in writing");
+					count+=size;
+				}  	
+	        }
+
+	       	free(arrayOfStat[workerNum]);
+
+			numOfloops = 0;
+
+			if(read(workerArray[workerNum]->readFd,&numOfloops,sizeof(int))<0)		// numOfloops --> how many statistics are
+					err("Problem in reading bytes");
+
+			arrayOfStat[workerNum] = malloc(numOfloops*sizeof(statistics));
+			numOfstat[workerNum] = numOfloops;
+
+			for (int j = 0; j < numOfloops; j++){
+
+				savestat(workerArray[workerNum]->readFd,bufferSize,arrayOfStat[workerNum][j].date,sizeof(stat->date));
+				savestat(workerArray[workerNum]->readFd,bufferSize,arrayOfStat[workerNum][j].country,sizeof(stat->country));
+				savestat(workerArray[workerNum]->readFd,bufferSize,arrayOfStat[workerNum][j].disease,sizeof(stat->disease));
+
+				for (int k = 0; k < 4; k++){
+					count=0;
+
+					buffer = malloc(sizeof(int));
+					strcpy(buffer,"");
+
+					if(read(workerArray[workerNum]->readFd,&message_size,sizeof(int))<0)
+						err("Problem in writing");
+
+					while(count < message_size){
+
+						if((num = read(workerArray[workerNum]->readFd,readBuffer,bufferSize))<0)
+							err("Problem in reading!");
+						strncat(buffer,readBuffer,num);
+						count += bufferSize;
+					}
+					
+					arrayOfStat[workerNum][j].ranges[k] = atoi(buffer);
+								
+					free(buffer);			
+				}
+				printStat(&arrayOfStat[workerNum][j]);
+			}
+			
+			SIGCHLDFlag = FALSE;
 		}
 		if(SIGINTFlag || SIGQUITFlag){
 
