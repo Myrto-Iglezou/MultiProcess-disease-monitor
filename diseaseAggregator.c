@@ -10,7 +10,6 @@
 #include <fcntl.h>
 #include <poll.h>
 #include "utils.h"
-#define err(mess){fprintf(stderr,"ERROR: %s\n",mess);exit(1);}
 #define stdinFd 0;
 
 static volatile sig_atomic_t signalPid = -1;
@@ -362,6 +361,8 @@ int main(int argc, char const *argv[]){
 	
 	int flag = TRUE;
 	int rc;
+	struct pollfd *tempfd;
+	tempfd = calloc(1,sizeof(struct pollfd));
 
 	while(flag){
 
@@ -577,13 +578,41 @@ int main(int argc, char const *argv[]){
 				if(!strcmp(diseaseCountry,"-")){
 
 				}else{
-					printf("---\n");
 					workerNum = findWorkerFromCountry(diseaseCountry, workerArray,numWorkers,countriesCounter);
 					writeBytes(buff,workerArray[workerNum]->writeFd, bufferSize);
 					writeBytes(VirusName,workerArray[workerNum]->writeFd, bufferSize);
 					writeBytes(date1,workerArray[workerNum]->writeFd, bufferSize);
 					writeBytes(date2,workerArray[workerNum]->writeFd, bufferSize);
 					writeBytes(diseaseCountry,workerArray[workerNum]->writeFd, bufferSize);
+
+					tempfd[0].fd  =  workerArray[workerNum]->readFd;
+       				tempfd[0].events = POLLIN;
+       				tempFlag = TRUE;
+       				count=0;
+       				while(tempFlag){
+       					rc = poll(tempfd,1,-1);
+
+						if(rc == -1){
+							err("problem with poll");
+						}		
+						else if(rc > 0){
+
+							if(tempfd[0].revents & POLLIN){
+								if(count==0){
+									if(read(workerArray[workerNum]->readFd,&message_size,sizeof(int))<0)
+										err("Problem in reading bytes.");
+									count=1;
+								}else{
+									buffer = malloc((message_size+1)*sizeof(char));
+									strcpy(buffer,"");
+									readBytes(workerArray[workerNum]->readFd,buffer,bufferSize,message_size);
+									printf("%s\n",buffer );
+									tempFlag = FALSE;
+									free(buffer);
+								}
+							}
+						}
+       				}					
 				}		
 			// }
 		}else if(!strcmp(buff,"/topk-AgeRanges")){
@@ -638,6 +667,7 @@ int main(int argc, char const *argv[]){
 		free(workerArray[i]); 
 	}
 	free(stat);
+	free(tempfd);
 	free(fdarray);
 	return 0;
 }

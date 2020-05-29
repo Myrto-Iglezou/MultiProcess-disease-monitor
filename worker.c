@@ -11,7 +11,7 @@
 #include "utils.h"
 #define TRUE 1
 #define FALSE 0
-#define err(mess){fprintf(stderr,"ERROR: %s\n",mess);exit(1);}
+
 
 static volatile sig_atomic_t SIGUR1Flag = FALSE;
 
@@ -537,7 +537,13 @@ int main(int argc, char const *argv[]){
 				else if(i==3)
 					strcpy(country,buffer);
 			}
+			count = diseaseFrequency(country,disease,diseaseHashtable,countryHashtable,date1,date2);
+			sprintf(buffer,"%d",count);
+
+			writeBytes(buffer,wfd,bufferSize);
 		}
+		
+
 		free(buffer);
 	}
 

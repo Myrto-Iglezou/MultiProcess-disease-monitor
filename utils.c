@@ -51,13 +51,13 @@ void writeBytes(char * data,int wfd, int bufferSize){
 	if(write(wfd,&message_size,sizeof(int))<0)
 		err("Problem in writing");
 
-	while(count < (strlen(data))){
+	while(count < message_size){
 
 		strPointer = &data[0];
 		strPointer+=count;
 		
-		if(((strlen(data)+1)-count)<size){
-			size = (strlen(data)+1)-count;					
+		if(((strlen(data))-count)<size){
+			size = (strlen(data))-count;					
 		}
 		strncpy(tempstr,strPointer,size);
 		if(write(wfd,tempstr,size)<0)
