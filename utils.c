@@ -21,6 +21,51 @@ int findWorkerFromCountry(char* country, workerInfo ** array,int numWorkers,int 
 	}
 }
 
+int findWorkerFromfd(int fd, workerInfo ** array,int numWorkers){
+	for(int i=0; i<numWorkers ;i++){
+		if(fd == array[i]->readFd)
+			return i;
+	}
+}
+
+void readBytes(int rfd,char* buffer,int bufferSize,int message_size){
+	int num;
+	char readBuffer[256];
+
+	int countBytes=0;
+	while(countBytes<message_size){			
+		if((num = read(rfd,readBuffer,bufferSize))<0)
+			err("Problem in reading!");
+		strncat(buffer,readBuffer,num);
+		countBytes = strlen(buffer);
+	}
+}
+
+void writeBytes(char * data,int wfd, int bufferSize){
+	char *strPointer = &data[0];
+	int size = bufferSize;
+	int count = 0;
+	int message_size = strlen(data);
+	char tempstr[256];
+
+	if(write(wfd,&message_size,sizeof(int))<0)
+		err("Problem in writing");
+
+	while(count < (strlen(data))){
+
+		strPointer = &data[0];
+		strPointer+=count;
+		
+		if(((strlen(data)+1)-count)<size){
+			size = (strlen(data)+1)-count;					
+		}
+		strncpy(tempstr,strPointer,size);
+		if(write(wfd,tempstr,size)<0)
+			err("Problem in writing");
+		count+=size;
+	}
+}
+
 void sendStat(char* data,int bufferSize,int wfd){
 	int count=0;
 	char tempstr[256];

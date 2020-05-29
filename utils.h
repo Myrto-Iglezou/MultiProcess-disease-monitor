@@ -8,7 +8,7 @@
 #include <signal.h>
 #include <dirent.h>
 #include <fcntl.h>
-#include "hashtable.h"
+#include "dataFunctions.h"
 
 typedef struct statistics{
 	char date[11];
@@ -33,8 +33,16 @@ void searchTree(Treenode* root,statistics** stat);
 
 void printStat(statistics * stat);
 
+void readBytes(int rfd,char* buffer,int bufferSize,int message_size);
+
+void writeBytes(char * data,int wfd, int bufferSize);
+
 void sendStat(char* data,int bufferSize,int wfd);
 
 void savestat(int readFd,int bufferSize,char* data,int sizeOfdata);
 
 int findNum(int id,workerInfo ** array,int numWorkers);
+
+int findWorkerFromfd(int fd, workerInfo ** array,int numWorkers);
+
+int findWorkerFromCountry(char* country, workerInfo ** array,int numWorkers,int *counter);

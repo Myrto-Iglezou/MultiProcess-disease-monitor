@@ -286,6 +286,8 @@ int main(int argc, char const *argv[]){
 
 	message_size = numOfstat;
 
+	printf("%d %d \n",message_size,wfd );
+
 	if(write(wfd,&message_size,sizeof(int))<0)
 		err("Problem in writing");
 
@@ -305,7 +307,7 @@ int main(int argc, char const *argv[]){
 
 		free(buffer);
 	}
-	char disease[64], country[64], date1[11], date2[11],diseaseCountry[64];
+	char diseaseCountry[64];
 
 	while(1){
 
@@ -516,27 +518,16 @@ int main(int argc, char const *argv[]){
 
 		buffer = malloc((message_size+1)*sizeof(char));
 		strcpy(buffer,"");
-		countBytes=0;
-		while(countBytes<message_size){			
-			if((num = read(rfd,readBuffer,bufferSize))<0)
-				err("Problem in reading!");
-			strncat(buffer,readBuffer,num);
-			countBytes = strlen(buffer);
-		}
-		if(strcmp(buffer,"/diseaseFrequency")){
+		readBytes(rfd,buffer,bufferSize,message_size);
+
+		if(!strcmp(buffer,"/diseaseFrequency")){
 			for (int i = 0; i < 4; i++){
 				if(read(rfd,&message_size,sizeof(int))<0)
 					err("Problem in reading bytes");
 
 				buffer = malloc((message_size+1)*sizeof(char));
 				strcpy(buffer,"");
-				countBytes=0;
-				while(countBytes<message_size){			
-					if((num = read(rfd,readBuffer,bufferSize))<0)
-						err("Problem in reading!");
-					strncat(buffer,readBuffer,num);
-					countBytes = strlen(buffer);
-				}
+				readBytes(rfd,buffer,bufferSize,message_size);
 				if(i==0)
 					strcpy(disease,buffer);
 				else if(i==1)
@@ -546,9 +537,7 @@ int main(int argc, char const *argv[]){
 				else if(i==3)
 					strcpy(country,buffer);
 			}
-			printf("%s %s %s %s \n",disease,date1,date2,country );
 		}
-
 		free(buffer);
 	}
 

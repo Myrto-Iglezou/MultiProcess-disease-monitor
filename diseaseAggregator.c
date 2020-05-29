@@ -567,41 +567,25 @@ int main(int argc, char const *argv[]){
 		
 		}if(!strcmp(buff,"/diseaseFrequency")){
 			scanf("%s %s %s",VirusName,date1,date2);
-			strncpy(diseaseCountry,"-");
+			strcpy(diseaseCountry,"-");
 			ch = getchar();
 			if(ch != '\n')
 				scanf("%s",diseaseCountry);
-			if(compareDates(date1,date2)>0){
-				err("Something went wrong with your date input");
-			}else{
+			// if(CompareDates(date1,date2)>0){
+			// 	err("Something went wrong with your date input");
+			// }else{
 				if(!strcmp(diseaseCountry,"-")){
-					workerNum = findWorkerFromCountry(diseaseCountry, workerArray,numWorkers,countriesCounter);
-					strPointer = &path[0];
-					size = bufferSize;
-					count = 0
-					message_size = strlen(path);
-					if(write(workerArray[w]->writeFd,&message_size,sizeof(int))<0)
-						err("Problem in writing");
 
-					while(count < (strlen(path))){
-
-						strPointer = &path[0];
-						strPointer+=count;
-						
-						if(((strlen(path)+1)-count)<size){
-							size = (strlen(path)+1)-count;					
-						}
-						strncpy(tempStr,strPointer,size);
-						if(write(workerArray[w]->writeFd,tempStr,size)<0)
-							err("Problem in writing");
-						count+=size;
-					}
 				}else{
-					for (int i = 0; i < numWorkers; ++i){
-						
-					}
+					printf("---\n");
+					workerNum = findWorkerFromCountry(diseaseCountry, workerArray,numWorkers,countriesCounter);
+					writeBytes(buff,workerArray[workerNum]->writeFd, bufferSize);
+					writeBytes(VirusName,workerArray[workerNum]->writeFd, bufferSize);
+					writeBytes(date1,workerArray[workerNum]->writeFd, bufferSize);
+					writeBytes(date2,workerArray[workerNum]->writeFd, bufferSize);
+					writeBytes(diseaseCountry,workerArray[workerNum]->writeFd, bufferSize);
 				}		
-			}
+			// }
 		}else if(!strcmp(buff,"/topk-AgeRanges")){
 			scanf("%s %s %s %s %s",k,diseaseCountry,VirusName,date1,date2);
 		
