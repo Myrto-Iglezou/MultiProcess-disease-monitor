@@ -308,6 +308,7 @@ int main(int argc, char const *argv[]){
 		free(buffer);
 	}
 	char diseaseCountry[64];
+	char* tempbuffer;
 
 	while(1){
 
@@ -520,30 +521,66 @@ int main(int argc, char const *argv[]){
 		strcpy(buffer,"");
 		readBytes(rfd,buffer,bufferSize,message_size);
 
-		if(!strcmp(buffer,"/diseaseFrequency")){
+		if(!strcmp(buffer,"/diseaseFrequency")){ ///diseaseFrequency H1N1 12-2-2000 12-2-2009 Italy
 			for (int i = 0; i < 4; i++){
+
 				if(read(rfd,&message_size,sizeof(int))<0)
 					err("Problem in reading bytes");
 
-				buffer = malloc((message_size+1)*sizeof(char));
-				strcpy(buffer,"");
-				readBytes(rfd,buffer,bufferSize,message_size);
+				tempbuffer = malloc((message_size+1)*sizeof(char));
+				strcpy(tempbuffer,"");
+				readBytes(rfd,tempbuffer,bufferSize,message_size);
+
 				if(i==0)
-					strcpy(disease,buffer);
+					strcpy(disease,tempbuffer);
 				else if(i==1)
-					strcpy(date1,buffer);
+					strcpy(date1,tempbuffer);
 				else if(i==2)
-					strcpy(date2,buffer);
+					strcpy(date2,tempbuffer);
 				else if(i==3)
-					strcpy(country,buffer);
+					strcpy(country,tempbuffer);
+				free(tempbuffer);
 			}
+
 			count = diseaseFrequency(country,disease,diseaseHashtable,countryHashtable,date1,date2);
 			sprintf(buffer,"%d",count);
 
 			writeBytes(buffer,wfd,bufferSize);
-		}
-		
+		}else if(!strcmp(buffer,"/searchPatientRecord")){
+			if(read(rfd,&message_size,sizeof(int))<0)
+					err("Problem in reading bytes");
 
+			tempbuffer = malloc((message_size+1)*sizeof(char));
+			strcpy(tempbuffer,"");
+			readBytes(rfd,tempbuffer,bufferSize,message_size);
+			strcpy(patientFirstName,"-");
+			strcpy(patientLastName,"-");
+			strcpy(disease,"-");
+			strcpy(country,"-");
+			strcpy(date1,"-");
+			strcpy(date2,"-");
+			strcpy(age,"0");
+			pat =  createPatient(tempbuffer,patientFirstName,patientLastName,disease,country,date1,date2,atoi(age));
+			tempNode = FindData(root,pat,ComparePatientsID);	
+			deletePatient(pat);		
+			if(tempNode!=guard){
+				pat = (Patient*) tempNode->data;
+				strcpy(tempbuffer,"1");
+				writeBytes(tempbuffer,wfd,bufferSize);
+				writeBytes(pat->firstName,wfd,bufferSize);
+				writeBytes(pat->lastName,wfd,bufferSize);
+				sprintf(buffer,"%d",pat->age);
+				writeBytes(buffer,wfd,bufferSize);
+				writeBytes(pat->disease,wfd,bufferSize);
+				writeBytes(pat->country,wfd,bufferSize);
+				writeBytes(pat->entryDate,wfd,bufferSize);
+				writeBytes(pat->exitDate,wfd,bufferSize);
+			}else{
+				strcpy(tempbuffer,"0");
+				writeBytes(tempbuffer,wfd,bufferSize);
+			}
+			free(tempbuffer);
+		}
 		free(buffer);
 	}
 

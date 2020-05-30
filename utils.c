@@ -31,11 +31,13 @@ int findWorkerFromfd(int fd, workerInfo ** array,int numWorkers){
 void readBytes(int rfd,char* buffer,int bufferSize,int message_size){
 	int num;
 	char readBuffer[256];
+	strcpy(buffer,"");
 
 	int countBytes=0;
 	while(countBytes<message_size){			
 		if((num = read(rfd,readBuffer,bufferSize))<0)
 			err("Problem in reading!");
+		// printf("------- %s\n",readBuffer );
 		strncat(buffer,readBuffer,num);
 		countBytes = strlen(buffer);
 	}
@@ -56,8 +58,8 @@ void writeBytes(char * data,int wfd, int bufferSize){
 		strPointer = &data[0];
 		strPointer+=count;
 		
-		if(((strlen(data))-count)<size){
-			size = (strlen(data))-count;					
+		if(((strlen(data)+1)-count)<size){
+			size = (strlen(data)+1)-count;					
 		}
 		strncpy(tempstr,strPointer,size);
 		if(write(wfd,tempstr,size)<0)
@@ -155,3 +157,18 @@ void printStat(statistics * stat){
 	}
 }
 
+Treenode* FindPatient(Treenode *root,char* id,int (*comparator)(const void*,const void*)){	// search tree
+	Treenode *temp  = root;		
+	Patient* pat = (Patient*) root->data;														// to find the data
+
+	if(temp==guard || !comparator(pat->recordID,id))
+		return temp;
+	if(comparator(pat->recordID,id)>0){
+		temp = temp->left;
+		FindPatient(temp,id,comparator);
+	}
+	else if(comparator(pat->recordID,id)<0){
+		temp = temp->right;
+		FindPatient(temp,id,comparator);
+	}
+}

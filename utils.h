@@ -46,3 +46,5 @@ int findNum(int id,workerInfo ** array,int numWorkers);
 int findWorkerFromfd(int fd, workerInfo ** array,int numWorkers);
 
 int findWorkerFromCountry(char* country, workerInfo ** array,int numWorkers,int *counter);
+
+Treenode* FindPatient(Treenode *root,char* id,int (*comparator)(const void*,const void*));

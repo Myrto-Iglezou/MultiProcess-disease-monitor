@@ -161,7 +161,7 @@ int main(int argc, char const *argv[]){
 			if((workerArray[i]->writeFd = open(workerArray[i]->writeFifo, O_WRONLY)) < 0)
 				printf("Could not open fifo..");
 
-			if((workerArray[i]->readFd = open(workerArray[i]->readFifo, O_RDONLY | O_NONBLOCK)) < 0)
+			if((workerArray[i]->readFd = open(workerArray[i]->readFifo, O_RDONLY)) < 0)
 				printf("Could not open fifo++");
 
 			if(workerArray[i]->writeFd > 0 && workerArray[i]->readFd > 0)
@@ -280,71 +280,45 @@ int main(int argc, char const *argv[]){
 		 boolArray[i] = 0;
 	}
 
-	while(1){
-		int rc;
-		rc = poll(fdarray,numWorkers+1,-1);
+	for (int i = 0; i < numWorkers; i++){
 
-		if(rc == -1){
-			err("problem with poll");
-		}		
-		else if(rc > 0){
+		if(read(workerArray[i]->readFd,&numOfloops,sizeof(int))<0)		// numOfloops --> how many statistics are
+				err("Problem in reading bytes");
 
-			for (int i = 0; i < nfds-1; i++){
-				
-				if(fdarray[i].revents & POLLIN){
-
-					printf("-----------------\n");
-
-					workerNum = findWorkerFromfd(fdarray[i].fd, workerArray,numWorkers);
-
-					if(read(workerArray[workerNum]->readFd,&numOfloops,sizeof(int))<0)		// numOfloops --> how many statistics are
-							err("Problem in reading bytes");
-
-					boolArray[workerNum] = 1;
-					arrayOfStat[workerNum] = malloc(numOfloops*sizeof(statistics));
-					numOfstat[workerNum] = numOfloops;
+		boolArray[i] = 1;
+		arrayOfStat[i] = malloc(numOfloops*sizeof(statistics));
+		numOfstat[i] = numOfloops;
 
 
-					for (int j = 0; j < numOfloops; j++){
+		for (int j = 0; j < numOfloops; j++){
 
-						savestat(workerArray[workerNum]->readFd,bufferSize,arrayOfStat[workerNum][j].date,sizeof(stat->date));
-						savestat(workerArray[workerNum]->readFd,bufferSize,arrayOfStat[workerNum][j].country,sizeof(stat->country));
-						savestat(workerArray[workerNum]->readFd,bufferSize,arrayOfStat[workerNum][j].disease,sizeof(stat->disease));
+			savestat(workerArray[i]->readFd,bufferSize,arrayOfStat[i][j].date,sizeof(stat->date));
+			savestat(workerArray[i]->readFd,bufferSize,arrayOfStat[i][j].country,sizeof(stat->country));
+			savestat(workerArray[i]->readFd,bufferSize,arrayOfStat[i][j].disease,sizeof(stat->disease));
 
-						for (int k = 0; k < 4; k++){
-							count=0;
+			for (int k = 0; k < 4; k++){
+				count=0;
 
-							buffer = malloc(sizeof(int));
-							strcpy(buffer,"");
+				buffer = malloc(sizeof(int));
+				strcpy(buffer,"");
 
-							if(read(workerArray[workerNum]->readFd,&message_size,sizeof(int))<0)
-								err("Problem in writing");
+				if(read(workerArray[i]->readFd,&message_size,sizeof(int))<0)
+					err("Problem in writing");
 
-							while(count < message_size){
+				while(count < message_size){
 
-								if((num = read(workerArray[i]->readFd,readBuffer,bufferSize))<0)
-									err("Problem in reading!");
-								strncat(buffer,readBuffer,num);
-								count += bufferSize;
-							}
-							
-							arrayOfStat[workerNum][j].ranges[k] = atoi(buffer);
-										
-							free(buffer);			
-						}
-						printStat(&arrayOfStat[workerNum][j]);
-					}
-
+					if((num = read(workerArray[i]->readFd,readBuffer,bufferSize))<0)
+						err("Problem in reading!");
+					strncat(buffer,readBuffer,num);
+					count += bufferSize;
 				}
+				
+				arrayOfStat[i][j].ranges[k] = atoi(buffer);
+							
+				free(buffer);			
 			}
+			printStat(&arrayOfStat[i][j]);
 		}
-		tempFlag = TRUE;
-		for (int i = 0; i < numWorkers; i++){
-			 if(boolArray[i] == 0)
-			 	tempFlag = FALSE;
-		}
-		if(tempFlag)
-			break;
 	}
 
 	/*----------------------------------------------------------------------------------*/
@@ -576,6 +550,24 @@ int main(int argc, char const *argv[]){
 			// 	err("Something went wrong with your date input");
 			// }else{
 				if(!strcmp(diseaseCountry,"-")){
+					int total = 0;
+					for (int i = 0; i < numWorkers; i++){
+						writeBytes(buff,workerArray[i]->writeFd, bufferSize);
+						writeBytes(VirusName,workerArray[i]->writeFd, bufferSize);
+						writeBytes(date1,workerArray[i]->writeFd, bufferSize);
+						writeBytes(date2,workerArray[i]->writeFd, bufferSize);
+						writeBytes(diseaseCountry,workerArray[i]->writeFd, bufferSize);	
+
+						if(read(workerArray[i]->readFd,&message_size,sizeof(int))<0)
+							err("Problem in reading bytes.");
+
+						buffer = malloc((message_size+1)*sizeof(char));
+						strcpy(buffer,"");
+						readBytes(workerArray[i]->readFd,buffer,bufferSize,message_size);
+						total += atoi(buffer);
+						free(buffer);
+					}
+					printf("%d\n", total );
 
 				}else{
 					workerNum = findWorkerFromCountry(diseaseCountry, workerArray,numWorkers,countriesCounter);
@@ -583,36 +575,16 @@ int main(int argc, char const *argv[]){
 					writeBytes(VirusName,workerArray[workerNum]->writeFd, bufferSize);
 					writeBytes(date1,workerArray[workerNum]->writeFd, bufferSize);
 					writeBytes(date2,workerArray[workerNum]->writeFd, bufferSize);
-					writeBytes(diseaseCountry,workerArray[workerNum]->writeFd, bufferSize);
+					writeBytes(diseaseCountry,workerArray[workerNum]->writeFd, bufferSize);	
 
-					tempfd[0].fd  =  workerArray[workerNum]->readFd;
-       				tempfd[0].events = POLLIN;
-       				tempFlag = TRUE;
-       				count=0;
-       				while(tempFlag){
-       					rc = poll(tempfd,1,-1);
+					if(read(workerArray[workerNum]->readFd,&message_size,sizeof(int))<0)
+						err("Problem in reading bytes.");
 
-						if(rc == -1){
-							err("problem with poll");
-						}		
-						else if(rc > 0){
-
-							if(tempfd[0].revents & POLLIN){
-								if(count==0){
-									if(read(workerArray[workerNum]->readFd,&message_size,sizeof(int))<0)
-										err("Problem in reading bytes.");
-									count=1;
-								}else{
-									buffer = malloc((message_size+1)*sizeof(char));
-									strcpy(buffer,"");
-									readBytes(workerArray[workerNum]->readFd,buffer,bufferSize,message_size);
-									printf("%s\n",buffer );
-									tempFlag = FALSE;
-									free(buffer);
-								}
-							}
-						}
-       				}					
+					buffer = malloc((message_size+1)*sizeof(char));
+					strcpy(buffer,"");
+					readBytes(workerArray[workerNum]->readFd,buffer,bufferSize,message_size);
+					printf("%s\n",buffer );
+					free(buffer);									
 				}		
 			// }
 		}else if(!strcmp(buff,"/topk-AgeRanges")){
@@ -621,6 +593,54 @@ int main(int argc, char const *argv[]){
 		}else if(!strcmp(buff,"/searchPatientRecord")){
 			char recordID[32] = "-";
 			scanf("%s",recordID);
+			tempFlag = FALSE;
+			for (int i = 0; i < numWorkers; i++){
+				writeBytes(buff,workerArray[i]->writeFd,bufferSize);
+				writeBytes(recordID,workerArray[i]->writeFd,bufferSize);
+			}
+			for (int i = 0; i < numWorkers; i++){
+				if(read(workerArray[i]->readFd,&message_size,sizeof(int))<0)
+					err("Problem in reading bytes");
+
+				buffer = malloc((message_size+1)*sizeof(char));
+				strcpy(buffer,"");
+				readBytes(workerArray[i]->readFd,buffer,bufferSize,message_size);
+				if(!strcmp(buffer,"1")){
+					free(buffer);
+					char country[40],patientFirstName[30],patientLastName[30],disease[20],age[5];
+					
+					for (int k = 0; k < 7; k++){
+						if(read(workerArray[i]->readFd,&message_size,sizeof(int))<0)
+						err("Problem in reading bytes");
+
+						buffer = malloc((message_size+1)*sizeof(char));
+						strcpy(buffer,"");
+						readBytes(workerArray[i]->readFd,buffer,bufferSize,message_size);
+						if(k==0)
+							strcpy(patientFirstName,buffer);
+						else if(k==1)
+							strcpy(patientLastName,buffer);
+						else if(k==2)
+							strcpy(age,buffer);
+						else if(k==3)
+							strcpy(disease,buffer);
+						else if(k==4)
+							strcpy(country,buffer);
+						else if(k==5)
+							strcpy(date1,buffer);
+						else if(k==6)
+							strcpy(date2,buffer);
+						free(buffer);
+					}
+					printf("\n%s %s %s %s %s %s %s %s\n\n",recordID,patientFirstName,patientLastName,age,disease,country,date1,date2 );
+					tempFlag = TRUE;
+					
+				}else
+					free(buffer);
+			}
+			if(!tempFlag)
+				printf("\nNo record with id %s\n\n",recordID );
+
 		}else if(!strcmp(buff,"/numPatientAdmissions")){
 			scanf("%s %s %s",VirusName,date1,date2);
 			ch = getchar();
