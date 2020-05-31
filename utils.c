@@ -19,6 +19,7 @@ int findWorkerFromCountry(char* country, workerInfo ** array,int numWorkers,int 
 				return i;
 		}
 	}
+	return -1;
 }
 
 int findWorkerFromfd(int fd, workerInfo ** array,int numWorkers){
@@ -157,18 +158,56 @@ void printStat(statistics * stat){
 	}
 }
 
-Treenode* FindPatient(Treenode *root,char* id,int (*comparator)(const void*,const void*)){	// search tree
-	Treenode *temp  = root;		
-	Patient* pat = (Patient*) root->data;														// to find the data
+int CheckDate(char entryDate[strlen(DATE)+1],char exitDate[strlen(DATE)+1]){			// check if exit date is sooner than the entry date
+	char temp[sizeof(DATE)];
+	char day1[3],day2[3],month1[3],month2[3],year1[5],year2[5];
 
-	if(temp==guard || !comparator(pat->recordID,id))
-		return temp;
-	if(comparator(pat->recordID,id)>0){
-		temp = temp->left;
-		FindPatient(temp,id,comparator);
+	const char s[2] = "-";
+   	char *token;
+   
+   strcpy(temp,entryDate);
+   token = strtok(temp, s);
+   
+   	if(!strcmp(exitDate,"–") || !strcmp(exitDate,"-")){		// if there's no exit date do not make the check;
+   		return TRUE;
+	}else{
+
+	   	for(int i=0;i<3;i++){		// split the entry date
+	    	
+	    	if(i==0)
+	    		strcpy(day1,token);
+	    	if(i==1)
+	    		strcpy(month1,token);
+	    	if(i==2)
+	    		strcpy(year1,token);
+	   	
+	      	token = strtok(NULL, s);
+	    }
+
+	   strcpy(temp,exitDate);
+	   token = strtok(temp, s);
+	   
+	   for(int i=0;i<3;i++){		// split the exit date
+	    	
+	    	if(i==0)
+	    		strcpy(day2,token);
+	    	if(i==1)
+	    		strcpy(month2,token);
+	    	if(i==2)
+	    		strcpy(year2,token);
+	   	
+	      	token = strtok(NULL, s);
+	   }
 	}
-	else if(comparator(pat->recordID,id)<0){
-		temp = temp->right;
-		FindPatient(temp,id,comparator);
-	}
+	if(atoi(month2)>12 || atoi(month1)>12)
+		return FALSE;
+	if(atoi(day2)>31 || atoi(day1)>31)
+		return FALSE;
+	if(atoi(year2)<atoi(year1))
+		return FALSE;
+	else if(atoi(year2)==atoi(year1) && atoi(month2)<atoi(month1))
+		return FALSE;
+	else if(atoi(year2)==atoi(year1) && atoi(month2)==atoi(month1) && atoi(day2)<atoi(day1))
+		return FALSE;
+	else return TRUE;
 }

@@ -1,8 +1,8 @@
 # in order to execute this "Makefile" just type "make"
 
-OBJS   = diseaseAggregator.o worker.o patient.o RBT.o comparators.o hashtable.o utils.o
-SOURCE = diseaseAggregator.c worker.c patient.c RBT.c comparators.c hashtable.c utils.c
-HEADER = patient.h RBT.h comparators.h hashtable.h utils.h
+OBJS   = diseaseAggregator.o worker.o patient.o RBT.o comparators.o hashtable.o utils.o dataFunctions.o heap.o
+SOURCE = diseaseAggregator.c worker.c patient.c RBT.c comparators.c hashtable.c utils.c dataFunctions.c heap.c
+HEADER = patient.h RBT.h comparators.h hashtable.h utils.h dataFunctions.h heap.h
 OUT    = diseaseAggregator 
 CC     = gcc
 FLAGS  = -g -c
@@ -14,8 +14,8 @@ diseaseAggregator: diseaseAggregator.o utils.o
 
 # create/compile the individual files >>seperetaly<<
 
-worker: worker.o patient.o RBT.o comparators.o hashtable.o utils.o
-	$(CC) -g worker.o patient.o RBT.o comparators.o utils.o  hashtable.o -o worker 
+worker: worker.o patient.o RBT.o comparators.o dataFunctions.o hashtable.o utils.o heap.o
+	$(CC) -g worker.o patient.o RBT.o comparators.o utils.o  dataFunctions.o hashtable.o heap.o -o worker -lm
 
 
 diseaseAggregator.o: diseaseAggregator.c 
@@ -39,6 +39,12 @@ comparators.o: comparators.c
 
 hashtable.o: hashtable.c
 	$(CC) $(FLAGS) hashtable.c
+
+dataFunctions.o: dataFunctions.c
+	$(CC) $(FLAGS) dataFunctions.c
+
+heap.o: heap.c
+	$(CC) $(FLAGS) heap.c 
 
 # clean house
 clean:

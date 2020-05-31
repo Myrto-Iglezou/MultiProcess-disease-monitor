@@ -542,10 +542,74 @@ int main(int argc, char const *argv[]){
 				free(tempbuffer);
 			}
 
-			count = diseaseFrequency(country,disease,diseaseHashtable,countryHashtable,date1,date2);
+			count = diseaseFrequency(country,disease,diseaseHashtable,countryHashtable,date1,date2,FALSE,FALSE);
 			sprintf(buffer,"%d",count);
 
 			writeBytes(buffer,wfd,bufferSize);
+		}else if(!strcmp(buffer,"/topk-AgeRanges")){
+			char k[5];
+			heap* newheap;
+			createHeap(&newheap);	// create the heap
+
+			for (int i = 0; i < 5; i++){
+
+				if(read(rfd,&message_size,sizeof(int))<0)
+					err("Problem in reading bytes.");
+
+				tempbuffer = malloc((message_size+1)*sizeof(char));
+				strcpy(tempbuffer,"");
+				readBytes(rfd,tempbuffer,bufferSize,message_size);
+
+				if(i==0)
+					strcpy(k,tempbuffer);
+				else if(i==1)
+					strcpy(country,tempbuffer);
+				else if(i==2)
+					strcpy(disease,tempbuffer);
+				else if(i==3)
+					strcpy(date1,tempbuffer);
+				else if(i==4)
+					strcpy(date2,tempbuffer);
+				free(tempbuffer);
+
+			}
+
+			int countRanges[4];
+			int total = 0;
+			float per = 0.0;
+			tempbuffer = malloc(32*sizeof(char));
+			int max;
+			char data[10];
+
+			for (int i = 0; i < 4; i++){
+				countRanges[i] = findRange(country,disease,diseaseHashtable,countryHashtable,date1,date2,i);
+				sprintf(tempbuffer,"%d",i);
+				insertToHeap(countRanges[i],tempbuffer,newheap);
+				total += countRanges[i] ;
+			}
+
+			if(total<0){
+				strcpy(tempbuffer,"-1");
+				writeBytes(tempbuffer,wfd,bufferSize);
+			}else{
+				strcpy(tempbuffer,"1");
+				writeBytes(tempbuffer,wfd,bufferSize);
+				if(atoi(k)>4)			// if the number requested is greater than the number of the ranges
+					strcpy(k,"4");
+
+				for(int i=0;i<atoi(k);i++){
+					getTheMax(data,&max,newheap);
+					per = (float) ((float) countRanges[atoi(data)] / (float) total);
+					sprintf(tempbuffer,"%lf",per);
+					writeBytes(data,wfd,bufferSize);
+					writeBytes(tempbuffer,wfd,bufferSize);
+				}
+			}
+			
+			DeleteHeap(newheap,newheap->root);
+			free(newheap);
+			free(tempbuffer);
+			
 		}else if(!strcmp(buffer,"/searchPatientRecord")){
 			if(read(rfd,&message_size,sizeof(int))<0)
 					err("Problem in reading bytes");
@@ -580,6 +644,74 @@ int main(int argc, char const *argv[]){
 				writeBytes(tempbuffer,wfd,bufferSize);
 			}
 			free(tempbuffer);
+		}else if(!strcmp(buffer,"/numPatientAdmissions")){ ///diseaseFrequency H1N1 12-2-2000 12-2-2009 Italy
+			for (int i = 0; i < 4; i++){
+
+				if(read(rfd,&message_size,sizeof(int))<0)
+					err("Problem in reading bytes");
+
+				tempbuffer = malloc((message_size+1)*sizeof(char));
+				strcpy(tempbuffer,"");
+				readBytes(rfd,tempbuffer,bufferSize,message_size);
+
+				if(i==0)
+					strcpy(disease,tempbuffer);
+				else if(i==1)
+					strcpy(date1,tempbuffer);
+				else if(i==2)
+					strcpy(date2,tempbuffer);
+				else if(i==3)
+					strcpy(country,tempbuffer);
+				free(tempbuffer);
+			}
+			if(!strcmp(country,"-")){
+				for (int i = 0; i < maxFolders; i++){
+					writeBytes(countries[i],wfd,bufferSize);
+					count = diseaseFrequency(countries[i],disease,diseaseHashtable,countryHashtable,date1,date2,TRUE,FALSE);
+					sprintf(buffer,"%d",count);
+
+					writeBytes(buffer,wfd,bufferSize);				
+				}
+			}else{
+				count = diseaseFrequency(country,disease,diseaseHashtable,countryHashtable,date1,date2,TRUE,FALSE);
+				sprintf(buffer,"%d",count);
+
+				writeBytes(buffer,wfd,bufferSize);
+			}
+		}else if(!strcmp(buffer,"/numPatientDischarges")){ ///numPatientDischarges H1N1 12-2-2000 12-2-2009 Italy
+			for (int i = 0; i < 4; i++){
+
+				if(read(rfd,&message_size,sizeof(int))<0)
+					err("Problem in reading bytes");
+
+				tempbuffer = malloc((message_size+1)*sizeof(char));
+				strcpy(tempbuffer,"");
+				readBytes(rfd,tempbuffer,bufferSize,message_size);
+
+				if(i==0)
+					strcpy(disease,tempbuffer);
+				else if(i==1)
+					strcpy(date1,tempbuffer);
+				else if(i==2)
+					strcpy(date2,tempbuffer);
+				else if(i==3)
+					strcpy(country,tempbuffer);
+				free(tempbuffer);
+			}
+			if(!strcmp(country,"-")){
+				for (int i = 0; i < maxFolders; i++){
+					writeBytes(countries[i],wfd,bufferSize);
+					count = diseaseFrequency(countries[i],disease,diseaseHashtable,countryHashtable,date1,date2,FALSE,TRUE);
+					sprintf(buffer,"%d",count);
+
+					writeBytes(buffer,wfd,bufferSize);				
+				}
+			}else{
+				count = diseaseFrequency(country,disease,diseaseHashtable,countryHashtable,date1,date2,FALSE,TRUE);
+				sprintf(buffer,"%d",count);
+
+				writeBytes(buffer,wfd,bufferSize);
+			}
 		}
 		free(buffer);
 	}

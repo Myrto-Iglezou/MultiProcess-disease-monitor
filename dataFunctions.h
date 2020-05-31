@@ -5,8 +5,12 @@
 #define err(mess){fprintf(stderr,"ERROR: %s\n",mess);exit(1);}
 
 
-int diseaseFrequency(char* country,char* virus,HashTable* diseaseHashtable,HashTable* countryHashtable,char* FirstDate,char* SecondDate);
+int diseaseFrequency(char* country,char* virus,HashTable* diseaseHashtable,HashTable* countryHashtable,char* FirstDate,char* SecondDate,int entry,int exit);
 
-void countTreePatients(int* count,Treenode * root,char* FirstDate,char* SecondDate);
+void countTreePatients(int* count,Treenode * root,char* FirstDate,char* SecondDate,int entry,int exit);
 
-void countFrequency(char* virus,int* count,Treenode * root,char* FirstDate,char* SecondDate);
+void countFrequency(char* virus,int* count,Treenode * root,char* FirstDate,char* SecondDate,int entry,int exit);
+
+int findRange(char* country,char* disease,HashTable* diseaseHashtable,HashTable* countryHashtable,char* FirstDate,char* SecondDate,int range);
+
+void countRanges(char* disease,int* count,Treenode * root,char* FirstDate,char* SecondDate,int range);

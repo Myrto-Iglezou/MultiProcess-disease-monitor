@@ -9,6 +9,7 @@
 #include <dirent.h>
 #include <fcntl.h>
 #include "dataFunctions.h"
+#include "heap.h"
 
 typedef struct statistics{
 	char date[11];
@@ -47,4 +48,4 @@ int findWorkerFromfd(int fd, workerInfo ** array,int numWorkers);
 
 int findWorkerFromCountry(char* country, workerInfo ** array,int numWorkers,int *counter);
 
-Treenode* FindPatient(Treenode *root,char* id,int (*comparator)(const void*,const void*));
+int CheckDate(char entryDate[strlen(DATE)+1],char exitDate[strlen(DATE)+1]);
