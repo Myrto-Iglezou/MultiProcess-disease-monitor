@@ -23,21 +23,11 @@ void countTreePatients(int* count,Treenode * root,char* FirstDate,char* SecondDa
 	Treenode *temp  = root;		
 	Patient* pat = (Patient*) temp->data;
 
-	if(entry){
+	if(exit){
 
 		if(temp==guard)
 			return;
-		if(CompareDates(&(pat->entryDate),&FirstDate)>=0 && CompareDates(&(pat->entryDate),&SecondDate)<=0 && !strcmp(pat->exitDate,"-")) // increase the counter between the two dates
-			(*count)++;
-		
-		countTreePatients(count,temp->left,FirstDate,SecondDate,entry,exit);
-		countTreePatients(count,temp->right,FirstDate,SecondDate,entry,exit);			
-				
-	}else if(exit){
-
-		if(temp==guard)
-			return;
-		if(CompareDates(&(pat->entryDate),&FirstDate)>=0 && CompareDates(&(pat->entryDate),&SecondDate)<=0 && strcmp(pat->exitDate,"-")) // increase the counter between the two dates
+		if(strcmp(pat->exitDate,"-") && CompareDates(&(pat->exitDate),&FirstDate)>=0 && CompareDates(&(pat->exitDate),&SecondDate)<=0) // increase the counter between the two dates
 			(*count)++;
 		
 		countTreePatients(count,temp->left,FirstDate,SecondDate,entry,exit);
@@ -59,24 +49,12 @@ void countFrequency(char* virus,int* count,Treenode * root,char* FirstDate,char*
 	Treenode *temp  = root;
 	Patient* pat = (Patient*) temp->data;
 
-	if(entry){
+	if(exit){
 
 		if(temp==guard)
 			return;
 
-		if(CompareDates(&(pat->entryDate),&FirstDate)>=0 && CompareDates(&(pat->entryDate),&SecondDate)<=0 && !strcmp(pat->exitDate,"-")){ // increase the counter between the two dates
-			if(!strcmp(pat->disease,virus))
-				(*count)++;
-		}
-		countFrequency(virus,count,temp->left,FirstDate,SecondDate,entry,exit);
-		countFrequency(virus,count,temp->right,FirstDate,SecondDate,entry,exit);
-
-	}else if(exit){
-
-		if(temp==guard)
-			return;
-
-		if(CompareDates(&(pat->entryDate),&FirstDate)>=0 && CompareDates(&(pat->entryDate),&SecondDate)<=0 && strcmp(pat->exitDate,"-")){ // increase the counter between the two dates
+		if(strcmp(pat->exitDate,"-") && CompareDates(&(pat->exitDate),&FirstDate)>=0 && CompareDates(&(pat->exitDate),&SecondDate)<=0){ // increase the counter between the two dates
 			if(!strcmp(pat->disease,virus))
 			(*count)++;
 		}

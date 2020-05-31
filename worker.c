@@ -76,6 +76,9 @@ int main(int argc, char const *argv[]){
 	/*--------------------------- Handle Signals -------------------------------------*/ 
 
 	static struct sigaction SIGUSR1act,SIGINTact,SIGQUITact,SIGKILLact;
+	sigset_t set;
+	sigfillset(&set);
+	sigprocmask(SIG_SETMASK, &set,NULL);
 
 	SIGINTact.sa_handler = SIGINTHandler;
 	sigfillset(&(SIGINTact.sa_mask));
@@ -190,9 +193,9 @@ int main(int argc, char const *argv[]){
 			n++;
 		}
 		
-		qsort(&namelist[0],n-1,sizeof(char*),CompareDates);	
+		qsort(&namelist[0],n,sizeof(char*),CompareDates);	
 
-		for(int i=0 ; i<n-1 ; i++){
+		for(int i=0 ; i<n ; i++){
 
 			if(createHashTable(&tableForStatistics,numOfentries)==FALSE){
 				printf("error\n");
@@ -240,8 +243,9 @@ int main(int argc, char const *argv[]){
 					strcpy(date1,pat->entryDate);
 					if(CompareDates(&date1,&date2)<=0)
 						strcpy(pat->exitDate,date2);
-				}else	
+				}else{
 					deletePatient(pat);
+				}
 			}
 			
 			fclose(fp);
@@ -309,6 +313,8 @@ int main(int argc, char const *argv[]){
 	}
 	char diseaseCountry[64];
 	char* tempbuffer;
+
+	sigprocmask(SIG_UNBLOCK,&set,NULL);
 
 	while(1){
 
@@ -517,6 +523,8 @@ int main(int argc, char const *argv[]){
 		if(read(rfd,&message_size,sizeof(int))<0)
 			err("Problem in reading bytes");
 
+		sigprocmask(SIG_SETMASK,&set,NULL);
+
 		buffer = malloc((message_size+1)*sizeof(char));
 		strcpy(buffer,"");
 		readBytes(rfd,buffer,bufferSize,message_size);
@@ -714,6 +722,7 @@ int main(int argc, char const *argv[]){
 			}
 		}
 		free(buffer);
+		sigprocmask(SIG_UNBLOCK, &set,NULL);
 	}
 
 	free(arrayOfStat);
@@ -726,7 +735,6 @@ int main(int argc, char const *argv[]){
 	DeleteHashTable(diseaseHashtable);
 	DeleteHashTable(countryHashtable);
 
-	// printTree(root,PrintPatient);
 	free(guard);
 	free(stat);
 	deleteTree(root,deletePatient);
