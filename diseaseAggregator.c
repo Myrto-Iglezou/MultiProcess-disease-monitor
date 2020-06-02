@@ -106,7 +106,7 @@ int main(int argc, char const *argv[]){
 
 	/*------------------------------- Create Workers -----------------------------------*/
 
-	workerInfo* workerArray[numWorkers];
+	workerInfo* workerArray[numWorkers];	// create an array to save some information of every worker (countries, pid, fds, etc)
 	for(int i=0; i<numWorkers ;i++){
 		workerArray[i] = malloc(sizeof(workerInfo));
 	}
@@ -122,10 +122,10 @@ int main(int argc, char const *argv[]){
 		sprintf(wfifo,"%d",i);
 		strcat(wfifo,"w");
 
-        workerArray[i]->writeFifo = malloc((strlen(rfifo)+1)*sizeof(char));
+        workerArray[i]->writeFifo = malloc((strlen(rfifo)+1)*sizeof(char));		// create fifo for parent to write and worker to read
 		strcpy( workerArray[i]->writeFifo,rfifo);
 
-		workerArray[i]->readFifo = malloc((strlen(wfifo)+1)*sizeof(char));
+		workerArray[i]->readFifo = malloc((strlen(wfifo)+1)*sizeof(char));		// create fifo for parent to read and worker to write
 		strcpy( workerArray[i]->readFifo,wfifo);
 		
 		if(mkfifo(workerArray[i]->writeFifo ,0666) == -1)
@@ -135,7 +135,7 @@ int main(int argc, char const *argv[]){
 			err("No fifo was created");
 	}
 
-	for(int i=0; i<numWorkers ;i++){
+	for(int i=0; i<numWorkers ;i++){		// create workers with fork and exec
 
 		pid = fork();
 
@@ -147,8 +147,8 @@ int main(int argc, char const *argv[]){
            	execlp("./worker","worker","-wfn",workerArray[i]->readFifo,"-rfn",workerArray[i]->writeFifo,"-b",fifoBuffer,NULL);
         }
         else{
-        	workerArray[i]->pid = pid;
-        	workerArray[i]->num = i;
+        	workerArray[i]->pid = pid;		// save the process id of every worker
+        	workerArray[i]->num = i;		// save the number of every worker
         }  
 
 	}
@@ -156,10 +156,10 @@ int main(int argc, char const *argv[]){
 	for(int i=0; i<numWorkers ;i++){
 		
 		while(1){
-			if((workerArray[i]->writeFd = open(workerArray[i]->writeFifo, O_WRONLY)) < 0)
+			if((workerArray[i]->writeFd = open(workerArray[i]->writeFifo, O_WRONLY)) < 0)		// open fifo for write
 				printf("Could not open fifo..");
 
-			if((workerArray[i]->readFd = open(workerArray[i]->readFifo, O_RDONLY)) < 0)
+			if((workerArray[i]->readFd = open(workerArray[i]->readFifo, O_RDONLY)) < 0)			// open fifo for read
 				printf("Could not open fifo++");
 
 			if(workerArray[i]->writeFd > 0 && workerArray[i]->readFd > 0)
@@ -192,15 +192,15 @@ int main(int argc, char const *argv[]){
 		numOffiles++;
 	}
 	rewinddir(dir);
-	int filesPerWorker = numOffiles/numWorkers;
-	int extraFiles = numOffiles%numWorkers;
+	int filesPerWorker = numOffiles/numWorkers;		// for every worker calculate the num of directories
+	int extraFiles = numOffiles%numWorkers;			// find the ones left
 	int totalFiles = 0;
 
-	for(int i = 0; i < numWorkers; i++){
+	for(int i = 0; i < numWorkers; i++){		
 		
-		totalFiles = filesPerWorker;
+		totalFiles = filesPerWorker;		
 		
-		if(extraFiles>i)
+		if(extraFiles>i)		// some of them will get an extra one
 			totalFiles+=1;
 
 		workerArray[i]->countries = malloc(totalFiles*sizeof(char*));
@@ -209,11 +209,11 @@ int main(int argc, char const *argv[]){
 			workerArray[i]->countries[j] = malloc(sizeof(char));
 		}
 
-		if(write(workerArray[i]->writeFd,&totalFiles,sizeof(int))<0)
+		if(write(workerArray[i]->writeFd,&totalFiles,sizeof(int))<0)		// send to worker the number of countries he will have
 			err("Problem in writing");
 	}
 
-	int countriesCounter[numWorkers];
+	int countriesCounter[numWorkers];		// counter for parent to know the number of countries of evey worker
 	for (int i = 0; i < numWorkers; i++){
 		countriesCounter[i] = 0;
 	}
@@ -226,7 +226,7 @@ int main(int argc, char const *argv[]){
 		if(w == numWorkers)
 			w=0;
 
-		workerArray[w]->countries[countriesCounter[w]] = realloc(workerArray[w]->countries[countriesCounter[w]], (strlen(dir_info->d_name)+1)*sizeof(char));
+		workerArray[w]->countries[countriesCounter[w]] = realloc(workerArray[w]->countries[countriesCounter[w]], (strlen(dir_info->d_name)+1)*sizeof(char));	// save the countries names 
 		strcpy(workerArray[w]->countries[countriesCounter[w]],dir_info->d_name);
 
 		countriesCounter[w]++;
@@ -237,25 +237,7 @@ int main(int argc, char const *argv[]){
 		strcat(path,"/");
 		strcat(path,dir_info->d_name);
 
-		strPointer = &path[0];
-		size = bufferSize;
-		message_size = strlen(path);
-		if(write(workerArray[w]->writeFd,&message_size,sizeof(int))<0)
-			err("Problem in writing");
-
-		while(count < (strlen(path))){
-
-			strPointer = &path[0];
-			strPointer+=count;
-			
-			if(((strlen(path)+1)-count)<size){
-				size = (strlen(path)+1)-count;					
-			}
-			strncpy(tempStr,strPointer,size);
-			if(write(workerArray[w]->writeFd,tempStr,size)<0)
-				err("Problem in writing");
-			count+=size;
-		}
+		writeBytes(path,workerArray[w]->writeFd,bufferSize);	// send the absolute path for every directory to the worker
 		w++;     
 	}
 
@@ -282,28 +264,22 @@ int main(int argc, char const *argv[]){
 		numOfstat[i] = numOfloops;
 
 
-		for (int j = 0; j < numOfloops; j++){
+		for (int j = 0; j < numOfloops; j++){		// save statistics in an array, for every worker
 
-			savestat(workerArray[i]->readFd,bufferSize,arrayOfStat[i][j].date,sizeof(stat->date));
-			savestat(workerArray[i]->readFd,bufferSize,arrayOfStat[i][j].country,sizeof(stat->country));
-			savestat(workerArray[i]->readFd,bufferSize,arrayOfStat[i][j].disease,sizeof(stat->disease));
+			savestat(workerArray[i]->readFd,bufferSize,arrayOfStat[i][j].date,sizeof(stat->date));			// date
+			savestat(workerArray[i]->readFd,bufferSize,arrayOfStat[i][j].country,sizeof(stat->country));	//country
+			savestat(workerArray[i]->readFd,bufferSize,arrayOfStat[i][j].disease,sizeof(stat->disease));	//disease
 
-			for (int k = 0; k < 4; k++){
+			for (int k = 0; k < 4; k++){	// ranges
 				count=0;
-
-				buffer = malloc(sizeof(int));
-				strcpy(buffer,"");
 
 				if(read(workerArray[i]->readFd,&message_size,sizeof(int))<0)
 					err("Problem in writing");
 
-				while(count < message_size){
+				buffer = malloc((message_size+1)*sizeof(char));
+				strcpy(buffer,"");
 
-					if((num = read(workerArray[i]->readFd,readBuffer,bufferSize))<0)
-						err("Problem in reading!");
-					strncat(buffer,readBuffer,num);
-					count += bufferSize;
-				}
+				readBytes(workerArray[i]->readFd,buffer,bufferSize,message_size);
 				
 				arrayOfStat[i][j].ranges[k] = atoi(buffer);
 							
@@ -332,7 +308,7 @@ int main(int argc, char const *argv[]){
 	tempfd[0].fd = stdinFd;
 	tempfd[0].events = POLLIN;
 
-	sigprocmask(SIG_UNBLOCK, &set,NULL);
+	sigprocmask(SIG_UNBLOCK, &set,NULL);	// allow signals
 
 	printf("\033[1;36mREQUEST:  \033[0m");
 	fflush(stdout);
@@ -341,16 +317,16 @@ int main(int argc, char const *argv[]){
 
 		strcpy(buff,"-");
 
-		rc = poll(tempfd,1,1);
+		rc = poll(tempfd,1,1);	// poll for the stdin
 
-		if(SIGUR1Flag){
+		if(SIGUR1Flag){		// a child has new files to read
 
 			int workerNum,id;
-			id = signalPid;
+			id = signalPid;		// find the child that send the signal
 
-			workerNum  = findNum(id,workerArray,numWorkers);
+			workerNum  = findNum(id,workerArray,numWorkers);	// find the number of this child by its pid
 
-			if(read(workerArray[workerNum]->readFd,&numOfloops,sizeof(int))<0)		// numOfloops --> how many statistics are
+			if(read(workerArray[workerNum]->readFd,&numOfloops,sizeof(int))<0)		// recieve statistics
 				err("Problem in reading bytes");
 
 			numOfstat[workerNum]+=numOfloops;
@@ -365,19 +341,13 @@ int main(int argc, char const *argv[]){
 				for (int k = 0; k < 4; k++){
 					count=0;
 
-					buffer = malloc(sizeof(int));
+					if(read(workerArray[workerNum]->readFd,&message_size,sizeof(int))<0)
+						err("Problem in writing");
+
+					buffer = malloc((message_size+1)*sizeof(char));
 					strcpy(buffer,"");
 
-					if(read(workerArray[workerNum]->readFd,&message_size,sizeof(int))<0)
-						err("Problem in reading");
-
-					while(count < message_size){
-
-						if((num = read(workerArray[workerNum]->readFd,readBuffer,bufferSize))<0)
-							err("Problem in reading!");
-						strncat(buffer,readBuffer,num);
-						count += bufferSize;
-					}
+					readBytes(workerArray[workerNum]->readFd,buffer,bufferSize,message_size);
 					
 					arrayOfStat[workerNum][j].ranges[k] = atoi(buffer);
 								
@@ -386,28 +356,43 @@ int main(int argc, char const *argv[]){
 				printStat(&arrayOfStat[workerNum][j]);
 			}
 			SIGUR1Flag = FALSE;
+			printf("\033[1;36mREQUEST:  \033[0m");
+			fflush(stdout);
 		}
-		if(SIGCHLDFlag){
+		if(SIGCHLDFlag){	// if a child is killed
 
 			int workerNum,id;
 			id = signalPid2;
 
 			workerNum  = findNum(id,workerArray,numWorkers);
 			
-			pid = fork();
+			pid = fork();		// create a new child
 
 	        if(pid == -1){
 	           	err("fork failed" );
+	           	fail++;
 	        }
 	        else if(pid == 0){
-	        	sprintf(fifoBuffer,"%d",bufferSize);
-	           	sprintf(pidfdr,"%d",workerArray[workerNum]->writeFd);
-	           	sprintf(pidfdw,"%d",workerArray[workerNum]->readFd);
-	           	execlp("./worker","worker","-wfd",pidfdw,"-rfd",pidfdr,"-b",fifoBuffer,NULL);
+		        sprintf(fifoBuffer,"%d",bufferSize);
+	           	execlp("./worker","worker","-wfn",workerArray[workerNum]->readFifo,"-rfn",workerArray[workerNum]->writeFifo,"-b",fifoBuffer,NULL);
+ 
 	        }
 	        else{
 	        	workerArray[workerNum]->pid = pid;
 	        } 
+
+	        close(workerArray[workerNum]->writeFd);
+	        close(workerArray[workerNum]->readFd);
+
+	        while(1){
+
+				workerArray[workerNum]->writeFd = open(workerArray[workerNum]->writeFifo, O_WRONLY);	// open fifo for write
+
+				workerArray[workerNum]->readFd = open(workerArray[workerNum]->readFifo, O_RDONLY);		// open fifo for read
+
+				if(workerArray[workerNum]->writeFd > 0 && workerArray[workerNum]->readFd > 0)
+					break;
+			}
 
 			if(write(workerArray[workerNum]->writeFd,&countriesCounter[workerNum],sizeof(int))<0)
 				err("Problem in writing");
@@ -461,19 +446,13 @@ int main(int argc, char const *argv[]){
 				for (int k = 0; k < 4; k++){
 					count=0;
 
-					buffer = malloc(sizeof(int));
-					strcpy(buffer,"");
-
 					if(read(workerArray[workerNum]->readFd,&message_size,sizeof(int))<0)
 						err("Problem in writing");
 
-					while(count < message_size){
+					buffer = malloc((message_size+1)*sizeof(char));
+					strcpy(buffer,"");
 
-						if((num = read(workerArray[workerNum]->readFd,readBuffer,bufferSize))<0)
-							err("Problem in reading!");
-						strncat(buffer,readBuffer,num);
-						count += bufferSize;
-					}
+					readBytes(workerArray[workerNum]->readFd,buffer,bufferSize,message_size);
 					
 					arrayOfStat[workerNum][j].ranges[k] = atoi(buffer);
 								
@@ -483,6 +462,8 @@ int main(int argc, char const *argv[]){
 			}
 			
 			SIGCHLDFlag = FALSE;
+			printf("\033[1;36mREQUEST:  \033[0m");
+			fflush(stdout);
 		}
 		if(SIGINTFlag || SIGQUITFlag){
 
@@ -490,7 +471,7 @@ int main(int argc, char const *argv[]){
 			char temp[64];
 			char request[64];
 
-			for (int i = 0; i < numWorkers; i++){
+			for (int i = 0; i < numWorkers; i++){	// kill all children 
 				kill(workerArray[i]->pid,SIGKILL);
 			}	
 			while(wait(NULL)>0);
@@ -543,7 +524,7 @@ int main(int argc, char const *argv[]){
 							printf("%s %d\n",workerArray[i]->countries[j],workerArray[i]->pid);
 						}
 					}
-				
+					success++;		
 				}if(!strcmp(buff,"/diseaseFrequency")){
 					scanf("%s %s %s",VirusName,date1,date2);
 					strcpy(diseaseCountry,"-");
@@ -552,10 +533,11 @@ int main(int argc, char const *argv[]){
 						scanf("%s",diseaseCountry);
 					if(!CheckDate(date1,date2)){
 						printf("Something went wrong with your date input\n");
+						fail++;
 					}else{
 						if(!strcmp(diseaseCountry,"-")){
 							int total = 0;
-							for (int i = 0; i < numWorkers; i++){
+							for (int i = 0; i < numWorkers; i++){		// send to every worker all the info from the input
 								writeBytes(buff,workerArray[i]->writeFd, bufferSize);
 								writeBytes(VirusName,workerArray[i]->writeFd, bufferSize);
 								writeBytes(date1,workerArray[i]->writeFd, bufferSize);
@@ -572,15 +554,20 @@ int main(int argc, char const *argv[]){
 								total += atoi(buffer);		
 								free(buffer);
 							}
-							if(total<0)
+							if(total<0){
 								printf("No record for this disease\n");
-							else 
+								fail++;
+							}
+							else{
 								printf("%d\n",total );
+								success++;
+							}
 
 						}else{
-							workerNum = findWorkerFromCountry(diseaseCountry, workerArray,numWorkers,countriesCounter);
-							if(workerNum==-1){
+							workerNum = findWorkerFromCountry(diseaseCountry, workerArray,numWorkers,countriesCounter);	// find which child has thiw country
+ 							if(workerNum==-1){
 								printf("No such country in the directory\n");
+								fail++;
 							}
 							else{
 								writeBytes(buff,workerArray[workerNum]->writeFd, bufferSize);
@@ -595,12 +582,16 @@ int main(int argc, char const *argv[]){
 								buffer = malloc((message_size+1)*sizeof(char));
 								strcpy(buffer,"");
 								readBytes(workerArray[workerNum]->readFd,buffer,bufferSize,message_size);
-								if(!strcmp(buffer,"-1"))
+								if(!strcmp(buffer,"-1")){
 									printf("No record for this disease\n");
-								else 
+									fail++;
+								}
+								else{
 									printf("%s\n",buffer );
+									success++;
+								}
 								free(buffer);	
-							}								
+							}						
 						}		
 					}
 				}else if(!strcmp(buff,"/topk-AgeRanges")){
@@ -609,8 +600,10 @@ int main(int argc, char const *argv[]){
 					workerNum = findWorkerFromCountry(diseaseCountry, workerArray,numWorkers,countriesCounter);
 					if(workerNum==-1){
 						printf("No such country in the directory\n");
+						fail++;
 					}else if(!CheckDate(date1,date2)){
 						printf("Something went wrong with your date input\n");
+						fail++;
 					}else{
 						writeBytes(buff,workerArray[workerNum]->writeFd, bufferSize);
 						writeBytes(k,workerArray[workerNum]->writeFd, bufferSize);	
@@ -629,6 +622,7 @@ int main(int argc, char const *argv[]){
 						if(!strcmp(buffer,"-1")){
 							printf("No record for this disease\n");
 							free(buffer);
+							fail++;
 						}else{
 							free(buffer);
 							if(atoi(k)>4)			// if the number requested is greater than the number of the ranges
@@ -640,7 +634,7 @@ int main(int argc, char const *argv[]){
 
 								buffer = malloc((message_size+1)*sizeof(char));
 								strcpy(buffer,"");
-								readBytes(workerArray[workerNum]->readFd,buffer,bufferSize,message_size);
+								readBytes(workerArray[workerNum]->readFd,buffer,bufferSize,message_size);	// read the range
 								if(!strcmp(buffer,"0"))
 									printf("0-20: ");
 								else if(!strcmp(buffer,"1"))
@@ -656,36 +650,36 @@ int main(int argc, char const *argv[]){
 
 								buffer = malloc((message_size+1)*sizeof(char));
 								strcpy(buffer,"");
-								readBytes(workerArray[workerNum]->readFd,buffer,bufferSize,message_size);
+								readBytes(workerArray[workerNum]->readFd,buffer,bufferSize,message_size);	// read the percentage
 								float temp = atof(buffer)*100;
 								printf("%0.2f %% \n",temp );
 								free(buffer);
 							}
+							success++;
 						}
-					}
-						
+					}				
 				}else if(!strcmp(buff,"/searchPatientRecord")){
 					char recordID[32] = "-";
 					scanf("%s",recordID);
 					tempFlag = FALSE;
 					for (int i = 0; i < numWorkers; i++){
-						writeBytes(buff,workerArray[i]->writeFd,bufferSize);
-						writeBytes(recordID,workerArray[i]->writeFd,bufferSize);
+						writeBytes(buff,workerArray[i]->writeFd,bufferSize);		// send to worker the request
+						writeBytes(recordID,workerArray[i]->writeFd,bufferSize);	// send the id
 					}
 					for (int i = 0; i < numWorkers; i++){
-						if(read(workerArray[i]->readFd,&message_size,sizeof(int))<0)
+						if(read(workerArray[i]->readFd,&message_size,sizeof(int))<0)	
 							err("Problem in reading bytes");
 
 						buffer = malloc((message_size+1)*sizeof(char));
 						strcpy(buffer,"");
-						readBytes(workerArray[i]->readFd,buffer,bufferSize,message_size);
-						if(!strcmp(buffer,"1")){
+						readBytes(workerArray[i]->readFd,buffer,bufferSize,message_size);	// read the result of every worker
+						if(!strcmp(buffer,"1")){	// if result is 1, this worker has found the record
 							free(buffer);
 							char country[40],patientFirstName[30],patientLastName[30],disease[20],age[5];
 							
 							for (int k = 0; k < 7; k++){
 								if(read(workerArray[i]->readFd,&message_size,sizeof(int))<0)
-								err("Problem in reading bytes");
+									err("Problem in reading bytes");
 
 								buffer = malloc((message_size+1)*sizeof(char));
 								strcpy(buffer,"");
@@ -708,12 +702,15 @@ int main(int argc, char const *argv[]){
 							}
 							printf("\n%s %s %s %s %s %s %s %s\n\n",recordID,patientFirstName,patientLastName,age,disease,country,date1,date2 );
 							tempFlag = TRUE;
+							success++;
 							
 						}else
 							free(buffer);
 					}
-					if(!tempFlag)
+					if(!tempFlag){
+						fail++;
 						printf("\nNo record with id %s\n\n",recordID );
+					}
 
 				}else if(!strcmp(buff,"/numPatientAdmissions") || !strcmp(buff,"/numPatientDischarges")){ // /numPatientAdmissions H1N1 12-2-2000 12-2-2009
 					scanf("%s %s %s",VirusName,date1,date2);
@@ -723,6 +720,7 @@ int main(int argc, char const *argv[]){
 						scanf("%s",diseaseCountry);
 					if(!CheckDate(date1,date2)){
 						printf("Something went wrong with your date input\n");
+						fail++;
 					}else if(!strcmp(diseaseCountry,"-")){
 						for (int i = 0; i < numWorkers; i++){
 							writeBytes(buff,workerArray[i]->writeFd, bufferSize);
@@ -735,15 +733,19 @@ int main(int argc, char const *argv[]){
 							for (int k = 0; k < countriesCounter[i]; k++){
 								for (int j = 0; j < 2; j++){
 									if(read(workerArray[i]->readFd,&message_size,sizeof(int))<0)
-									err("Problem in reading bytes.");
+										err("Problem in reading bytes.");
 
 									buffer = malloc((message_size+1)*sizeof(char));
 									strcpy(buffer,"");
 									readBytes(workerArray[i]->readFd,buffer,bufferSize,message_size);
-									if(!strcmp(buffer,"-1"))
+									if(!strcmp(buffer,"-1")){
 										printf("0\n");
-									else 
+										fail++;
+									}
+									else {
 										printf("%s ",buffer );
+										success++;
+									}
 									free(buffer);	
 								}
 								printf("\n");
@@ -753,6 +755,7 @@ int main(int argc, char const *argv[]){
 						workerNum = findWorkerFromCountry(diseaseCountry, workerArray,numWorkers,countriesCounter);
 						if(workerNum==-1){
 							printf("No such country in the directory\n");
+							fail++;
 						}
 						else{
 							writeBytes(buff,workerArray[workerNum]->writeFd, bufferSize);
@@ -767,26 +770,31 @@ int main(int argc, char const *argv[]){
 							buffer = malloc((message_size+1)*sizeof(char));
 							strcpy(buffer,"");
 							readBytes(workerArray[workerNum]->readFd,buffer,bufferSize,message_size);
-							if(!strcmp(buffer,"-1"))
+							if(!strcmp(buffer,"-1")){
 								printf("No record for this disease\n");
-							else 
+								fail++;
+							}
+							else{
 								printf("%s %s\n",diseaseCountry,buffer );
+								success++;
+							}
 							free(buffer);	
 						}								
-					}		
+					}
 				}else if(!strcmp(buff,"/exit")){
 					flag = FALSE;
 					for (int i = 0; i < numWorkers; i++){
 						kill(workerArray[i]->pid,SIGKILL);
 					}
 				}
-				else{
+				else if(strcmp(buff,"/listCountries")){
 					ch = getchar();
 					while(ch != '\n'){
 						scanf("%s",diseaseCountry);
 						ch = getchar();
 					}
 					printf("Wrong input\n");
+					fail++;
 				}
 				if(strcmp(buff,"/exit")){
 					printf("\033[1;36mREQUEST:  \033[0m");

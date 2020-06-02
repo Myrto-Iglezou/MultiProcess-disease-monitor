@@ -1,18 +1,17 @@
 #include "utils.h"
-#define err(mess){fprintf(stderr,"ERROR: %s\n",mess);exit(1);}
 
 void findRanges(statistics** stat,BucketRecord* record){
 	searchTree(record->root,stat);
 }
 
-int findNum(int id,workerInfo ** array,int numWorkers){
+int findNum(int id,workerInfo ** array,int numWorkers){		// find the number of the worker from the pid
 	for(int i=0; i<numWorkers ;i++){
 		if(array[i]->pid == id)
 			return i;
 	}
 }
 
-int findWorkerFromCountry(char* country, workerInfo ** array,int numWorkers,int *counter){
+int findWorkerFromCountry(char* country, workerInfo ** array,int numWorkers,int *counter){		// find the number of the worker from the country
 	for(int i=0; i<numWorkers ;i++){
 		for (int j = 0; j < counter[i]; j++){
 			if(!strcmp(country,array[i]->countries[j]))
@@ -22,24 +21,21 @@ int findWorkerFromCountry(char* country, workerInfo ** array,int numWorkers,int 
 	return -1;
 }
 
-int findWorkerFromfd(int fd, workerInfo ** array,int numWorkers){
-	for(int i=0; i<numWorkers ;i++){
-		if(fd == array[i]->readFd)
-			return i;
-	}
-}
-
 void readBytes(int rfd,char* buffer,int bufferSize,int message_size){
 	int num;
 	char readBuffer[256];
 	strcpy(buffer,"");
 
+	if(bufferSize>message_size)
+		bufferSize = message_size + 1;
+
 	int countBytes=0;
 	while(countBytes<message_size){			
 		if((num = read(rfd,readBuffer,bufferSize))<0)
 			err("Problem in reading!");
-		// printf("------- %s\n",readBuffer );
+			
 		strncat(buffer,readBuffer,num);
+		
 		countBytes = strlen(buffer);
 	}
 }
@@ -50,6 +46,9 @@ void writeBytes(char * data,int wfd, int bufferSize){
 	int count = 0;
 	int message_size = strlen(data);
 	char tempstr[256];
+
+	if(bufferSize>message_size)
+		size = message_size + 1;
 
 	if(write(wfd,&message_size,sizeof(int))<0)
 		err("Problem in writing");
@@ -62,9 +61,11 @@ void writeBytes(char * data,int wfd, int bufferSize){
 		if(((strlen(data)+1)-count)<size){
 			size = (strlen(data)+1)-count;					
 		}
+	
 		strncpy(tempstr,strPointer,size);
 		if(write(wfd,tempstr,size)<0)
 			err("Problem in writing");
+
 		count+=size;
 	}
 }
@@ -77,6 +78,9 @@ void sendStat(char* data,int bufferSize,int wfd){
 
 	int message_size = strlen(data);
 
+	if(bufferSize>message_size)
+		size = message_size + 1;
+
 	if(write(wfd,&message_size,sizeof(int))<0)
 		printf("Problem in writing");
 
@@ -85,11 +89,11 @@ void sendStat(char* data,int bufferSize,int wfd){
 		if(((strlen(data)+1)-count)<size){
 			size = (strlen(data)+1)-count;					
 		}
+		
 		strncpy(tempstr,strPointer,size);
-		// printf("%s\n",tempstr );
 		if(write(wfd,tempstr,size)<0)
-			printf("err\n");
-			// err("Problem in writing");
+			err("Problem in writing");
+
 		count+=size;
 		strPointer+=size;
 	}
@@ -107,11 +111,16 @@ void savestat(int readFd,int bufferSize,char* data,int sizeOfdata){
 	if(read(readFd,&message_size,sizeof(int))<0)
 		err("Problem in writing");
 
+	if(bufferSize>message_size)
+		bufferSize = message_size + 1;
+
 	while(count < message_size){
 
 		if((num = read(readFd,readBuffer,bufferSize))<0)
 			err("Problem in reading!");
+
 		strncat(buffer,readBuffer,num);
+
 		count += bufferSize;
 	}
 	strcpy(data,buffer);
@@ -119,7 +128,7 @@ void savestat(int readFd,int bufferSize,char* data,int sizeOfdata){
 	free(buffer);
 }
 
-void searchTree(Treenode* root,statistics** stat){
+void searchTree(Treenode* root,statistics** stat){		// find the ranges in the tree
 	if(root==guard)
 		return;
 	searchTree(root->left,stat);

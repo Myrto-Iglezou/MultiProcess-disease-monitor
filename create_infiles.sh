@@ -34,7 +34,7 @@ while read entry; do
 	fi
 	
 	for ((i=1;i<=numFilesPerDirectory;i++)) do
-		date=$RANDOM
+		date=$RANDOM			# fix a random date
 		let "date %= $day"
 		((date+=$num))
 		mon=$RANDOM
@@ -50,7 +50,7 @@ while read entry; do
 		done
 		date+=$y
 
-		touch ./$input_dir/$entry/$date 
+		touch ./$input_dir/$entry/$date 	# create the files of the dates
 		j=1
 
 		patients=$RANDOM
@@ -59,7 +59,7 @@ while read entry; do
 
 		for((k=0;k<patients;k++))
 		do
-			if [ -e $"temp.txt" ] ; then
+			if [ -e $"temp.txt" ] ; then	# take some records of the temp file and make them be EXIT
 				record=$(head -n 1 $"temp.txt") 
 				echo "${record/ENTER/"EXIT"}" >> ./$input_dir/$entry/$date
 				sed -i '1d' $"temp.txt"
@@ -67,7 +67,7 @@ while read entry; do
 		done
 		((j+=$patients))
 		
-		for ((j;j<=numFilesPerDirectory;j++))
+		for ((j;j<=numRecordsPerFile;j++))		# for the rest patients create new
 		do
 			record="$idnum"
 			((idnum+=$num))
@@ -100,9 +100,8 @@ while read entry; do
 	done
 
 done < $countriesFile
+
 rm temp.txt
-numWorkers=10
-bufferSize=512
-# make clean
-# make
-# ./diseaseAggregator -w $numWorkers -b $bufferSize -i $input_dir
+
+
+
