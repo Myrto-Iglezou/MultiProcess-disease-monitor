@@ -9,7 +9,7 @@ The purpose of this paper is to familiarize students with creating processes usi
 
 ## Summary of the project
 
-In this project, I hava implemented an undistributed information processing tool that receives, processes, records and answers questions about viruses.
+In this project, I have implemented an undistributed information processing tool that receives, processes, records and answers questions about viruses.
 Specifically, I implemented the diseaseAggregator application which creates a series of Worker processes that, together with the application, answer user questions.
 
 ## Project Description
