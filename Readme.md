@@ -18,7 +18,11 @@ Specifically, I implemented the diseaseAggregator application which creates a se
 
 
 The diseaseAggregator application will be used as follows: <br>
+
+
 ```./diseaseAggregator –w numWorkers -b bufferSize -i input_dir```
+
+
 <br>where: <br>
 - The **numWorkers** parameter is the Worker number of processes that the application will create. <br>
 - The **bufferSize** parameter: is the size of the buffer for reading over pipes. <br>
@@ -56,7 +60,7 @@ The diseaseAggregator application will be used as follows: <br>
 
 
 ```COVID-19``` <br>
-```Age range 0-20 years: 20 cases``` <br>```
+```Age range 0-20 years: 20 cases``` <br>
 ```Age range 21-40 years: 230 cases``` <br>
 ```Age range 41-60 years: 340 cases``` <br>
 ```Age range 60+ years: 450 cases``` <br>
@@ -108,7 +112,7 @@ Example for someone who went to the hospital 23-02-2020 and left 28-02-2020: <br
   
 Example for someone who was admitted to the hospital on 23-02-2020 and has not yet been released: <br>
 
-  ```776 Larry Jones SARS-1 87 23-02-2020 --``` <br>```
+  ```776 Larry Jones SARS-1 87 23-02-2020 --``` <br>
   
  * */numPatientAdmissions disease date1 date2 [country]*
 
