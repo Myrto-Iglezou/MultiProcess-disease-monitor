@@ -141,6 +141,9 @@ If given the country argument, the application will print on a new line, the tot
  ```SUCCESS 25663``` <br>
  ```FAIL 3487``` <br>
  
+Implementation of named pipes: <br>
+![](/images/syspro.PNG?raw=true "Implementation of named pipes")
+ 
  ### B. __The script create_infiles.sh (25%)__
  
 <p> You will write a bash script that creates test subdirectories and input files that you will use to debug your program. Of course during the development of your program you can use a few small files to debug. The script create_infiles.sh works as follows: </p>
