@@ -17,21 +17,20 @@ Specifically, I implemented the diseaseAggregator application which creates a se
 ### A. __The diseaseAggregator application (75%)__
 
 
-The diseaseAggregator application will be used as follows:
+The diseaseAggregator application will be used as follows: <br>
 ```./diseaseAggregator –w numWorkers -b bufferSize -i input_dir```
 <br>where: <br>
 - The **numWorkers** parameter is the Worker number of processes that the application will create. <br>
 - The **bufferSize** parameter: is the size of the buffer for reading over pipes. <br>
 - The **input_dir** parameter: is a directory that contains subdirectories with the files that will be processed by Workers. Each subdirectory will have the name of a country and will contain files named by dates, DD-MM-YYYY . For example *input_dir* could contain subdirectories China */ Italy / and Germany /* which have the following files: <br>
 
- <br>
- ```/ input_dir / China / 21-12-2019``` <br>
-``` / input_dir / China / 22-12-2019``` <br>
-``` …``` <br>
-``` / input_dir / Italy / 31-01-2020``` <br>
-``` / input_dir / Italy / 01-02-2020``` <br>
-``` … ```<br>
-``` / input_dir / Germany / 02-03-2020``` <br>
+```/input_dir/China/21-12-2019``` <br>
+```/input_dir/China/22-12-2019``` <br>
+``` ...``` <br>
+```/input_dir/Italy/31-01-2020``` <br>
+```/input_dir/Italy/01-02-2020``` <br>
+``` ... ``` <br>
+```/input_dir/Germany/02-03-2020``` <br>
 
 - Each DD-MM-YYYY file contains a series of patient records where each line describes a patient who was admitted / discharged to / from a hospital that day and contains the recordID, name, virus, and age. For example if the contents of the file / input_dir / Germany / 02-03-2020 of the file are:
 
@@ -141,7 +140,6 @@ If given the country argument, the application will print on a new line, the tot
  ### B. __The script create_infiles.sh (25%)__
  
 <p> You will write a bash script that creates test subdirectories and input files that you will use to debug your program. Of course during the development of your program you can use a few small files to debug. The script create_infiles.sh works as follows: </p>
-
 
  <br> ```./create_infiles.sh diseasesFile countriesFile input_dir numFilesPerDirectory numRecordsPerFile```  <br>
 
