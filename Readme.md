@@ -9,7 +9,7 @@ The purpose of this paper is to familiarize students with creating processes usi
 
 ## Summary of the project
 
-In this project, I hava implemented an undistributed information processing tool that receives, processes, records and answers questions about viruses.
+In this project, I have implemented an undistributed information processing tool that receives, processes, records and answers questions about viruses.
 Specifically, I implemented the diseaseAggregator application which creates a series of Worker processes that, together with the application, answer user questions.
 
 ## Project Description
@@ -140,6 +140,9 @@ If given the country argument, the application will print on a new line, the tot
  ```TOTAL 29150``` <br>
  ```SUCCESS 25663``` <br>
  ```FAIL 3487``` <br>
+ 
+Implementation of named pipes: <br>
+![](/images/syspro.PNG?raw=true "Implementation of named pipes")
  
  ### B. __The script create_infiles.sh (25%)__
  
